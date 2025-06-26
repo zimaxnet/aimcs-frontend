@@ -4,6 +4,8 @@ export default function AISimpleTest() {
   const [status, setStatus] = useState('Not tested');
   const [response, setResponse] = useState('');
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
+  const [fullResponse, setFullResponse] = useState('');
 
   const endpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
   const deployment = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT;
@@ -13,29 +15,38 @@ export default function AISimpleTest() {
     setStatus('Testing...');
     setError('');
     setResponse('');
+    setDebugInfo('');
+    setFullResponse('');
     if (!endpoint || !deployment || !apiKey) {
       setStatus('❌ Missing environment variables');
       return;
     }
+    const url = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=2024-10-01-preview`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'api-key': apiKey,
+    };
+    const body = JSON.stringify({
+      messages: [{ role: 'user', content: 'Hello, are you there?' }],
+      max_tokens: 20,
+    }, null, 2);
+    setDebugInfo(`URL: ${url}\nHeaders: ${JSON.stringify(headers, null, 2)}\nBody: ${body}`);
     try {
-      const url = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=2024-10-01-preview`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': apiKey,
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Hello, are you there?' }],
-          max_tokens: 20,
-        }),
+        headers,
+        body,
       });
+      const resHeaders = {};
+      res.headers.forEach((v, k) => { resHeaders[k] = v; });
+      const resText = await res.text();
+      setFullResponse(`Status: ${res.status} ${res.statusText}\nHeaders: ${JSON.stringify(resHeaders, null, 2)}\nBody: ${resText}`);
       if (!res.ok) {
         setStatus(`❌ Error: ${res.status}`);
-        setError(await res.text());
+        setError(resText);
         return;
       }
-      const data = await res.json();
+      const data = JSON.parse(resText);
       setStatus('✅ Success');
       setResponse(data.choices?.[0]?.message?.content || JSON.stringify(data));
     } catch (err) {
@@ -63,6 +74,8 @@ export default function AISimpleTest() {
           <div>Endpoint: {endpoint || 'MISSING'}</div>
           <div>Deployment: {deployment || 'MISSING'}</div>
           <div>API Key: {apiKey ? 'SET' : 'MISSING'}</div>
+          {debugInfo && <pre className="bg-gray-100 rounded p-2 mt-2 overflow-x-auto">{debugInfo}</pre>}
+          {fullResponse && <pre className="bg-yellow-100 rounded p-2 mt-2 overflow-x-auto">{fullResponse}</pre>}
         </div>
       </div>
     </div>
