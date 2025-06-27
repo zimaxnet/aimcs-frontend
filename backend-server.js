@@ -1,17 +1,22 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws';
+import cors from 'cors';
+import path from 'path';
+import sdk from 'microsoft-cognitiveservices-speech-sdk';
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server });
 
 // Azure OpenAI Configuration
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || 'https://aimcs-foundry.cognitiveservices.azure.com/';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'model-router';
+
+// Azure Speech Services Configuration
+const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
+const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION || 'eastus2';
 
 // Middleware
 app.use(cors({
@@ -29,6 +34,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Store active WebSocket connections
 const connections = new Map();
 
+// Audio processing state per connection
+const audioStates = new Map();
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -37,7 +45,8 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     connections: connections.size,
     version: '1.0.0',
-    aiConfigured: !!AZURE_OPENAI_API_KEY
+    aiConfigured: !!AZURE_OPENAI_API_KEY,
+    speechConfigured: !!AZURE_SPEECH_KEY
   });
 });
 
@@ -48,8 +57,10 @@ app.get('/api/status', (req, res) => {
     timestamp: new Date().toISOString(),
     activeConnections: connections.size,
     aiConfigured: !!AZURE_OPENAI_API_KEY,
+    speechConfigured: !!AZURE_SPEECH_KEY,
     aiEndpoint: AZURE_OPENAI_ENDPOINT,
     aiDeployment: AZURE_OPENAI_DEPLOYMENT,
+    speechRegion: AZURE_SPEECH_REGION,
     endpoints: [
       'GET /health',
       'GET /api/status',
@@ -142,6 +153,194 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// Initialize speech recognizer for a connection
+const initializeSpeechRecognizer = (connectionId, ws) => {
+  if (!AZURE_SPEECH_KEY) {
+    console.log('⚠️ Azure Speech Services not configured');
+    return null;
+  }
+
+  try {
+    const speechConfig = sdk.SpeechConfig.fromSubscription(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION);
+    speechConfig.speechRecognitionLanguage = 'en-US';
+    speechConfig.enableDictation();
+    
+    const audioConfig = sdk.AudioConfig.fromStreamInput(new sdk.PushAudioInputStream());
+    const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+    
+    // Store audio stream for this connection
+    const audioStream = audioConfig.properties.getProperty(sdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs);
+    
+    recognizer.recognized = (s, e) => {
+      if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
+        const transcribedText = e.result.text;
+        console.log(`🎤 Speech recognized: "${transcribedText}"`);
+        
+        // Send transcribed text to client
+        ws.send(JSON.stringify({
+          type: 'speech_recognized',
+          message: transcribedText,
+          timestamp: new Date().toISOString()
+        }));
+        
+        // Send to AI for response
+        processAITranscription(connectionId, transcribedText, ws);
+      }
+    };
+    
+    recognizer.recognizing = (s, e) => {
+      if (e.result.reason === sdk.ResultReason.RecognizingSpeech) {
+        const partialText = e.result.text;
+        console.log(`🎤 Partial recognition: "${partialText}"`);
+        
+        // Send partial transcription to client
+        ws.send(JSON.stringify({
+          type: 'speech_recognizing',
+          message: partialText,
+          timestamp: new Date().toISOString()
+        }));
+      }
+    };
+    
+    recognizer.canceled = (s, e) => {
+      console.log(`❌ Speech recognition canceled: ${e.reason}`);
+      if (e.reason === sdk.CancellationReason.Error) {
+        console.error(`Speech recognition error: ${e.errorDetails}`);
+      }
+    };
+    
+    recognizer.sessionStopped = (s, e) => {
+      console.log('🔚 Speech recognition session stopped');
+      recognizer.stopContinuousRecognitionAsync();
+    };
+    
+    return { recognizer, audioStream };
+  } catch (error) {
+    console.error('❌ Error initializing speech recognizer:', error);
+    return null;
+  }
+};
+
+// Process transcribed text with AI
+const processAITranscription = async (connectionId, transcribedText, ws) => {
+  if (!AZURE_OPENAI_API_KEY) {
+    ws.send(JSON.stringify({
+      type: 'chat_response',
+      message: `Echo: ${transcribedText}`,
+      aiUsed: false,
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
+  try {
+    console.log(`🤖 Processing transcribed text with AI: "${transcribedText}"`);
+    
+    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-10-01-preview`;
+    
+    const openaiResponse = await fetch(openaiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': AZURE_OPENAI_API_KEY,
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You are a helpful AI assistant for the AIMCS (AI Multimodal Customer System). Provide clear, concise, and helpful responses.' },
+          { role: 'user', content: transcribedText }
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!openaiResponse.ok) {
+      throw new Error(`Azure OpenAI API error: ${openaiResponse.status}`);
+    }
+
+    const openaiData = await openaiResponse.json();
+    const aiResponse = openaiData.choices?.[0]?.message?.content || 'No response from AI';
+
+    console.log(`✅ AI response to transcription: "${aiResponse}"`);
+
+    // Send text response
+    ws.send(JSON.stringify({
+      type: 'chat_response',
+      message: aiResponse,
+      aiUsed: true,
+      originalMessage: transcribedText,
+      timestamp: new Date().toISOString()
+    }));
+
+    // Generate and send speech response
+    await generateAndSendSpeech(aiResponse, ws);
+
+  } catch (error) {
+    console.error(`❌ Error processing transcription with AI:`, error);
+    ws.send(JSON.stringify({
+      type: 'chat_response',
+      message: `Sorry, I couldn't process that. Please try again.`,
+      aiUsed: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }));
+  }
+};
+
+// Generate speech from text and send to client
+const generateAndSendSpeech = async (text, ws) => {
+  if (!AZURE_SPEECH_KEY) {
+    console.log('⚠️ Speech Services not configured for TTS');
+    return;
+  }
+
+  try {
+    console.log(`🎤 Generating speech for: "${text}"`);
+    
+    const speechConfig = sdk.SpeechConfig.fromSubscription(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION);
+    speechConfig.speechSynthesisVoiceName = 'en-US-JennyNeural'; // Natural-sounding voice
+    speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3;
+    
+    const synthesizer = new sdk.SpeechSynthesizer(speechConfig);
+    
+    const result = await new Promise((resolve, reject) => {
+      synthesizer.speakTextAsync(
+        text,
+        result => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            resolve(result);
+          } else {
+            reject(new Error(`Speech synthesis failed: ${result.reason}`));
+          }
+          synthesizer.close();
+        },
+        error => {
+          console.error('Speech synthesis error:', error);
+          synthesizer.close();
+          reject(error);
+        }
+      );
+    });
+
+    // Convert audio buffer to base64
+    const audioData = Buffer.from(result.audioData).toString('base64');
+    
+    console.log(`✅ Speech generated, size: ${result.audioData.length} bytes`);
+
+    // Send audio response to client
+    ws.send(JSON.stringify({
+      type: 'speech_response',
+      message: text,
+      audioData: audioData,
+      timestamp: new Date().toISOString()
+    }));
+
+  } catch (error) {
+    console.error('❌ Error generating speech:', error);
+    // Don't fail the entire response if TTS fails
+  }
+};
+
 // WebSocket connection handling
 wss.on('connection', (ws, req) => {
   const connectionId = Date.now().toString();
@@ -155,13 +354,20 @@ wss.on('connection', (ws, req) => {
   console.log(`🔌 WebSocket connected: ${connectionId} from ${clientInfo.ip}`);
   connections.set(connectionId, { ws, info: clientInfo });
 
+  // Initialize speech recognizer for this connection
+  const speechState = initializeSpeechRecognizer(connectionId, ws);
+  if (speechState) {
+    audioStates.set(connectionId, speechState);
+  }
+
   // Send welcome message
   ws.send(JSON.stringify({
     type: 'connection',
     message: 'WebSocket connected successfully',
     connectionId,
     timestamp: new Date().toISOString(),
-    aiConfigured: !!AZURE_OPENAI_API_KEY
+    aiConfigured: !!AZURE_OPENAI_API_KEY,
+    speechConfigured: !!AZURE_SPEECH_KEY
   }));
 
   // Handle incoming messages
@@ -240,6 +446,9 @@ wss.on('connection', (ws, req) => {
               timestamp: new Date().toISOString()
             }));
 
+            // Generate and send speech response for chat messages too
+            await generateAndSendSpeech(aiResponse, ws);
+
           } catch (error) {
             console.error(`❌ WebSocket chat error:`, error);
             ws.send(JSON.stringify({
@@ -253,27 +462,68 @@ wss.on('connection', (ws, req) => {
           break;
 
         case 'audio':
-          // Handle audio data
+          // Handle audio data with real-time processing
           console.log(`🎤 Audio data received from ${connectionId}, size: ${message.data?.length || 0} bytes`);
           
-          // Echo back audio acknowledgment
+          const audioState = audioStates.get(connectionId);
+          if (audioState && audioState.recognizer) {
+            try {
+              // Convert base64 audio to buffer
+              const audioBuffer = Buffer.from(message.data, 'base64');
+              
+              // Send audio to speech recognizer
+              if (audioState.audioStream) {
+                audioState.audioStream.write(audioBuffer);
+              }
+              
+              // Start recognition if not already started
+              if (!audioState.isRecognizing) {
+                audioState.recognizer.startContinuousRecognitionAsync();
+                audioState.isRecognizing = true;
+              }
+              
+              // Send acknowledgment
+              ws.send(JSON.stringify({
+                type: 'audio_processing',
+                message: 'Audio being processed in real-time',
+                dataSize: audioBuffer.length,
+                timestamp: new Date().toISOString()
+              }));
+              
+            } catch (error) {
+              console.error(`❌ Error processing audio:`, error);
+              ws.send(JSON.stringify({
+                type: 'audio_error',
+                message: 'Error processing audio',
+                error: error.message,
+                timestamp: new Date().toISOString()
+              }));
+            }
+          } else {
+            // Fallback: just acknowledge audio
+            ws.send(JSON.stringify({
+              type: 'audio_received',
+              message: 'Audio data received (speech processing not available)',
+              dataSize: message.data?.length || 0,
+              timestamp: new Date().toISOString()
+            }));
+          }
+          break;
+
+        case 'stop_audio':
+          // Stop audio processing
+          const state = audioStates.get(connectionId);
+          if (state && state.recognizer && state.isRecognizing) {
+            state.recognizer.stopContinuousRecognitionAsync();
+            state.isRecognizing = false;
+            console.log(`⏹️ Stopped audio processing for ${connectionId}`);
+          }
+          
           ws.send(JSON.stringify({
-            type: 'audio_received',
-            message: 'Audio data received',
-            dataSize: message.data?.length || 0,
+            type: 'audio_stopped',
+            message: 'Audio processing stopped',
             timestamp: new Date().toISOString()
           }));
-
-          // Here you would process the audio data
-          // For now, we'll just log it
-          if (message.data) {
-            // Convert base64 back to buffer for processing
-            const audioBuffer = Buffer.from(message.data, 'base64');
-            console.log(`🎵 Audio buffer size: ${audioBuffer.length} bytes`);
-            
-            // TODO: Process audio with Azure Speech Services or other AI
-            // For now, just acknowledge receipt
-          }
           break;
 
         case 'ping':
@@ -307,12 +557,21 @@ wss.on('connection', (ws, req) => {
   // Handle connection close
   ws.on('close', (code, reason) => {
     console.log(`🔌 WebSocket disconnected: ${connectionId}, code: ${code}, reason: ${reason}`);
+    
+    // Clean up speech recognizer
+    const audioState = audioStates.get(connectionId);
+    if (audioState && audioState.recognizer) {
+      audioState.recognizer.stopContinuousRecognitionAsync();
+      audioState.recognizer.close();
+    }
+    audioStates.delete(connectionId);
     connections.delete(connectionId);
   });
 
   // Handle errors
   ws.on('error', (error) => {
     console.error(`❌ WebSocket error for ${connectionId}:`, error);
+    audioStates.delete(connectionId);
     connections.delete(connectionId);
   });
 });
@@ -325,6 +584,14 @@ process.on('SIGTERM', () => {
   connections.forEach(({ ws }, id) => {
     console.log(`🔌 Closing connection ${id}`);
     ws.close(1000, 'Server shutting down');
+  });
+  
+  // Clean up speech recognizers
+  audioStates.forEach((state, id) => {
+    if (state.recognizer) {
+      state.recognizer.stopContinuousRecognitionAsync();
+      state.recognizer.close();
+    }
   });
   
   server.close(() => {
@@ -352,8 +619,12 @@ server.listen(PORT, () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`🌐 API status: http://localhost:${PORT}/api/status`);
   console.log(`🤖 AI Configured: ${!!AZURE_OPENAI_API_KEY}`);
+  console.log(`🎤 Speech Services Configured: ${!!AZURE_SPEECH_KEY}`);
   if (AZURE_OPENAI_API_KEY) {
     console.log(`🔗 AI Endpoint: ${AZURE_OPENAI_ENDPOINT}`);
     console.log(`🎯 AI Deployment: ${AZURE_OPENAI_DEPLOYMENT}`);
   }
-}); 
+  if (AZURE_SPEECH_KEY) {
+    console.log(`🎤 Speech Region: ${AZURE_SPEECH_REGION}`);
+  }
+});

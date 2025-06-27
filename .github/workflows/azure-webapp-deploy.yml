@@ -40,19 +40,19 @@ jobs:
           echo "VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" >> $GITHUB_ENV
-          echo "VITE_BACKEND_API_URL=${{ secrets.VITE_BACKEND_API_URL }}" >> $GITHUB_ENV
+          echo "VITE_BACKEND_URL=https://api.aimcs.net" >> $GITHUB_ENV
           
           echo "Environment variables set for build step:"
           echo "VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
           echo "VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
-          echo "VITE_BACKEND_API_URL: ${{ secrets.VITE_BACKEND_API_URL }}"
+          echo "VITE_BACKEND_URL: https://api.aimcs.net"
 
       - name: Build Vite app
         env:
           VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}
           VITE_AZURE_OPENAI_API_KEY: ${{ secrets.VITE_AZURE_OPENAI_API_KEY }}
           VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}
-          VITE_BACKEND_API_URL: ${{ secrets.VITE_BACKEND_API_URL }}
+          VITE_BACKEND_URL: https://api.aimcs.net
         run: npm run build
 
       - name: Debug built files
@@ -67,7 +67,7 @@ jobs:
                 echo "Checking file: $jsfile"
                 grep -o "VITE_AZURE_OPENAI_ENDPOINT" "$jsfile" || echo "ENDPOINT not found in $jsfile"
                 grep -o "VITE_AZURE_OPENAI_DEPLOYMENT" "$jsfile" || echo "DEPLOYMENT not found in $jsfile"
-                grep -o "VITE_BACKEND_API_URL" "$jsfile" || echo "BACKEND_URL not found in $jsfile"
+                grep -o "VITE_BACKEND_URL" "$jsfile" || echo "BACKEND_URL not found in $jsfile"
                 echo "---"
               fi
             done
@@ -103,7 +103,7 @@ jobs:
             VITE_AZURE_OPENAI_ENDPOINT="${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" \
             VITE_AZURE_OPENAI_API_KEY="${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" \
             VITE_AZURE_OPENAI_DEPLOYMENT="${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" \
-            VITE_BACKEND_API_URL="${{ secrets.VITE_BACKEND_API_URL }}"
+            VITE_BACKEND_URL="https://api.aimcs.net"
 
       - name: Debug secrets
         run: |

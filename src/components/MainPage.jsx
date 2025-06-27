@@ -13,7 +13,7 @@ export default function MainPage() {
   const messagesEndRef = useRef(null);
 
   // Environment variables
-  const backendUrl = import.meta.env.VITE_BACKEND_API_URL;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'wss://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io';
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
@@ -32,9 +32,9 @@ export default function MainPage() {
     }
 
     try {
-      const url = new URL(backendUrl);
-      const wsUrl = `${url.protocol === 'https:' ? 'wss:' : 'ws:'}//${url.host}/ws/audio`;
+      const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/audio';
       
+      console.log('🔌 Connecting to WebSocket:', wsUrl);
       const ws = new WebSocket(wsUrl);
       websocketRef.current = ws;
 
@@ -47,10 +47,48 @@ export default function MainPage() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'chat_response') {
-            addMessage(data.message, 'ai');
-          } else if (data.type === 'connection') {
-            addMessage('Ready to chat', 'system');
+          
+          switch (data.type) {
+            case 'chat_response':
+              addMessage(data.message, 'ai');
+              break;
+            case 'speech_recognized':
+              addMessage(`🎤 "${data.message}"`, 'speech');
+              break;
+            case 'speech_recognizing':
+              // Update the last message if it's a partial recognition
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.type === 'speech') {
+                  lastMessage.message = `🎤 "${data.message}" (recognizing...)`;
+                } else {
+                  newMessages.push({
+                    id: Date.now(),
+                    message: `🎤 "${data.message}" (recognizing...)`,
+                    type: 'speech',
+                    timestamp: new Date().toLocaleTimeString()
+                  });
+                }
+                return newMessages;
+              });
+              break;
+            case 'speech_response':
+              // Play the AI's speech response
+              playAudioResponse(data.audioData);
+              addMessage(`🔊 "${data.message}"`, 'ai_speech');
+              break;
+            case 'audio_processing':
+              addMessage('🎤 Processing audio...', 'system');
+              break;
+            case 'audio_stopped':
+              addMessage('⏹️ Audio processing stopped', 'system');
+              break;
+            case 'connection':
+              addMessage('Ready for voice and text chat', 'system');
+              break;
+            default:
+              console.log('Received message:', data);
           }
         } catch (e) {
           console.log('Raw message:', event.data);
@@ -165,6 +203,15 @@ export default function MainPage() {
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
       addMessage('⏹️ Recording stopped', 'system');
+      
+      // Send stop_audio command to backend
+      if (websocketRef.current?.readyState === WebSocket.OPEN) {
+        const stopMessage = {
+          type: 'stop_audio',
+          timestamp: new Date().toISOString()
+        };
+        websocketRef.current.send(JSON.stringify(stopMessage));
+      }
     }
   };
 
@@ -176,6 +223,31 @@ export default function MainPage() {
       type,
       timestamp: new Date().toLocaleTimeString()
     }]);
+  };
+
+  // Play audio response from AI
+  const playAudioResponse = (audioData) => {
+    try {
+      // Convert base64 to blob
+      const audioBlob = new Blob([Uint8Array.from(atob(audioData), c => c.charCodeAt(0))], {
+        type: 'audio/mp3'
+      });
+      
+      // Create audio URL and play
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl); // Clean up
+      };
+      
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+      });
+      
+    } catch (error) {
+      console.error('Error processing audio response:', error);
+    }
   };
 
   // Handle Enter key
@@ -225,6 +297,10 @@ export default function MainPage() {
                       ? 'bg-blue-600 text-white' 
                       : msg.type === 'ai'
                       ? 'bg-gray-200 text-gray-800'
+                      : msg.type === 'ai_speech'
+                      ? 'bg-purple-200 text-purple-800 border-2 border-purple-300'
+                      : msg.type === 'speech'
+                      ? 'bg-purple-100 text-purple-800'
                       : msg.type === 'system'
                       ? 'bg-green-100 text-green-800'
                       : 'bg-red-100 text-red-800'
