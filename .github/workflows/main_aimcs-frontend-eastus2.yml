@@ -3,11 +3,14 @@
 
 name: Build and deploy Node.js app to Azure Web App - aimcs-frontend-eastus2
 
+# DISABLED - This workflow is conflicting with azure-webapp-deploy.yml
+# Using the correct workflow that properly builds with environment variables
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  # workflow_dispatch:
+  # Disabled to prevent conflicts
 
 jobs:
   build:
