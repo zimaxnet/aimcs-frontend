@@ -346,4 +346,38 @@ src/
 
 ## Support
 
-For support and questions, please contact the Zimax Networks AI Architecture and Engineering Team. 
+For support and questions, please contact the Zimax Networks AI Architecture and Engineering Team.
+
+## ⚠️ Region Alignment Requirement (Important)
+
+**Both the frontend (Web App) and backend (container or App Service) must be deployed in the same Azure region as your Azure OpenAI resource and model deployments.**
+
+- For this project, the region is: **eastus2**
+- If your frontend or backend is in a different region, you may encounter 404 errors or network access issues when calling Azure OpenAI.
+- Always create your resource group, App Service plan, Web App, and backend container in the same region as your Azure OpenAI resource.
+
+## Updated Deployment Process (2024)
+
+1. **Create Resource Group and App Service Plan in eastus2**
+2. **Deploy Frontend Web App in eastus2**
+3. **Deploy Backend (container or App Service) in eastus2**
+4. **Set environment variables for both frontend and backend to match your Azure OpenAI resource**
+5. **Update GitHub Actions workflow to deploy to the correct region and app name**
+6. **(Optional) Move custom domain and SSL to the new Web App**
+
+### Example Azure CLI for eastus2
+
+```
+az group create --name aimcs-rg-eastus2 --location eastus2
+az appservice plan create --name aimcs-appservice-plan-eastus2 --resource-group aimcs-rg-eastus2 --sku B1 --is-linux --location eastus2
+az webapp create --name aimcs-frontend-eastus2 --resource-group aimcs-rg-eastus2 --plan aimcs-appservice-plan-eastus2 --runtime "NODE|20-lts"
+az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group aimcs-rg-eastus2 --settings VITE_AZURE_OPENAI_ENDPOINT="https://aimcs-foundry.cognitiveservices.azure.com/" VITE_AZURE_OPENAI_API_KEY="<your-key>" VITE_AZURE_OPENAI_DEPLOYMENT="model-router"
+```
+
+## Lessons Learned / Troubleshooting
+
+- **404 errors from Azure OpenAI** can occur if your Web App or backend is in a different region than your OpenAI resource, even if all environment variables are correct.
+- **Cloud Shell and local dev may work** even when the Web App fails, due to Azure network policies.
+- **Role assignments**: Ensure your GitHub Actions service principal has Contributor access to the new resource group.
+- **Custom domains and SSL** must be reconfigured for new Web Apps in a new region.
+- **Always update your GitHub Actions secrets** with the publish profile for the new Web App. 
