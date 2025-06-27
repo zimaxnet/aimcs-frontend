@@ -54,4 +54,12 @@ jobs:
             --settings \
             VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }} \
             VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }} \
-            VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }} 
+            VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}
+
+      - name: Debug secrets
+        run: |
+          echo "ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
+          echo "DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
+          echo "API_KEY length: ${#VITE_AZURE_OPENAI_API_KEY}"
+        env:
+          VITE_AZURE_OPENAI_API_KEY: ${{ secrets.VITE_AZURE_OPENAI_API_KEY }} 
