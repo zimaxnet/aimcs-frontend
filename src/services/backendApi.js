@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Backend API Configuration
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'https://aimcs-backend.lemonrock-6071617c.westus.azurecontainerapps.io';
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io';
 
 // Create axios instance for backend API
 const backendClient = axios.create({
