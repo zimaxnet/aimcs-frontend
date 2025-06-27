@@ -21,6 +21,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug secrets before build
+        run: |
+          echo "Checking if secrets are available:"
+          echo "ENDPOINT exists: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT != '' }}"
+          echo "API_KEY exists: ${{ secrets.VITE_AZURE_OPENAI_API_KEY != '' }}"
+          echo "DEPLOYMENT exists: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT != '' }}"
+          echo "BACKEND_URL exists: ${{ secrets.VITE_BACKEND_API_URL != '' }}"
+          echo "ENDPOINT value: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
+          echo "DEPLOYMENT value: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
+          echo "BACKEND_URL value: ${{ secrets.VITE_BACKEND_API_URL }}"
+          echo "API_KEY exists: ${{ secrets.VITE_AZURE_OPENAI_API_KEY != '' }}"
+
       - name: Build Vite app
         env:
           VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}
@@ -28,6 +40,21 @@ jobs:
           VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}
           VITE_BACKEND_API_URL: ${{ secrets.VITE_BACKEND_API_URL }}
         run: npm run build
+
+      - name: Debug built files
+        run: |
+          echo "Checking if environment variables were injected:"
+          if [ -f "dist/assets/index-*.js" ]; then
+            echo "Built JS file found:"
+            ls -la dist/assets/
+            echo "Checking for environment variables in built file:"
+            grep -o "VITE_AZURE_OPENAI_ENDPOINT" dist/assets/index-*.js || echo "ENDPOINT not found in built file"
+            grep -o "VITE_AZURE_OPENAI_DEPLOYMENT" dist/assets/index-*.js || echo "DEPLOYMENT not found in built file"
+            grep -o "VITE_BACKEND_API_URL" dist/assets/index-*.js || echo "BACKEND_URL not found in built file"
+          else
+            echo "No built JS files found in dist/assets/"
+            ls -la dist/
+          fi
 
       - name: Upload artifact (for debugging)
         uses: actions/upload-artifact@v4
