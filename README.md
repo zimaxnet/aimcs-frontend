@@ -5,35 +5,87 @@
 
 The frontend application for the AI Multimodal Customer System (AIMCS), created by the Zimax Networks AI Architecture and Engineering Team.
 
+## 🚀 **Current Deployment Status**
+
+**✅ LIVE SYSTEM - FULLY OPERATIONAL**
+
+- **Frontend**: https://aimcs-frontend-eastus2.azurewebsites.net
+- **Backend**: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+- **AI Services**: Azure AI Foundry with model-router deployment
+- **Region**: All components deployed in `eastus2` for optimal performance
+
 ## Overview
 
 This is a React 18 application built with Vite, featuring:
 - Modern, responsive UI with Tailwind CSS
 - AI model testing and interaction capabilities
 - Professional homepage showcasing the system
-- Azure AI Foundry integration
+- Azure AI Foundry integration with model-router
 - Real-time voice chat capabilities
 - **Beautiful dashboard with persistent navigation for AI Demo and Backend Test after authentication**
 - **Simple unauthenticated AI connection test at `/ai-test`**
+- **Full backend integration with Container Apps**
 
 ## Technology Stack
 
 - **Framework**: React 18 with Vite
 - **Styling**: Tailwind CSS
-- **AI Integration**: Azure AI Foundry
-- **Deployment**: Azure Web Apps
+- **AI Integration**: Azure AI Foundry with model-router
+- **Backend**: Node.js Container App
+- **Deployment**: Azure Web Apps + Container Apps
 - **CI/CD**: GitHub Actions
+- **Authentication**: Microsoft Entra External ID (CIAM)
 
 ## Features
 
 - 🏠 **Professional Homepage** - Showcases the AIMCS system and Zimax Networks
-- 🤖 **AI Model Testing** - Interactive interface for testing Azure AI models
+- 🤖 **AI Model Testing** - Interactive interface for testing Azure AI models via model-router
 - 🎤 **Voice Chat** - Real-time voice interaction capabilities
-- 🛠️ **Backend Test** - Diagnostics and API testing
+- 🛠️ **Backend Test** - Diagnostics and API testing with full backend integration
 - 📱 **Responsive Design** - Works seamlessly across all devices
 - 🔧 **Easy Navigation** - Simple navigation between homepage, dashboard, AI demo, and backend test
 - ✨ **Modern Dashboard** - Authenticated users see a beautiful, card-based dashboard with Tailwind, including navigation to all features
 - 🧪 **AI Connection Test** - Visit `/ai-test` to verify AI secrets and connectivity without authentication
+- 🔗 **Backend Integration** - Full API connectivity with health checks and model management
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AIMCS System (eastus2)                   │
+├─────────────────────────────────────────────────────────────┤
+│  Frontend (React + Vite)                                    │
+│  https://aimcs-frontend-eastus2.azurewebsites.net           │
+│  ├── AI Integration (Azure AI Foundry)                      │
+│  ├── Authentication (Microsoft Entra External ID)           │
+│  └── Backend API Client                                     │
+├─────────────────────────────────────────────────────────────┤
+│  Backend (Node.js Container App)                            │
+│  https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.  │
+│  azurecontainerapps.io                                      │
+│  ├── Health Checks                                          │
+│  ├── Model Management                                       │
+│  ├── Chat API                                               │
+│  └── Speech-to-Text                                         │
+├─────────────────────────────────────────────────────────────┤
+│  AI Services (Azure AI Foundry)                             │
+│  https://aimcs-foundry.cognitiveservices.azure.com/         │
+│  ├── Model Router Deployment                                │
+│  ├── GPT-4o Mini                                            │
+│  └── Claude 3 Haiku                                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Environment Variables
+
+The system uses the following environment variables:
+
+| Variable | Description | Current Value |
+|----------|-------------|---------------|
+| `VITE_AZURE_OPENAI_ENDPOINT` | Azure AI Foundry endpoint | `https://aimcs-foundry.cognitiveservices.azure.com/` |
+| `VITE_AZURE_OPENAI_API_KEY` | AI Foundry API key | Configured |
+| `VITE_AZURE_OPENAI_DEPLOYMENT` | Model deployment name | `model-router` |
+| `VITE_BACKEND_API_URL` | Backend Container App URL | `https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io` |
 
 ## Monorepo & Environment Variable Handling
 
@@ -47,7 +99,9 @@ This is a React 18 application built with Vite, featuring:
 
 - **Automated builds and deployments** via GitHub Actions
 - **Environment variables** are injected at build time for Vite
-- **Azure Web App** is configured with the correct OpenAI endpoint, API key, and deployment name
+- **Azure Web App** is configured with the correct AI Foundry endpoint, API key, and deployment name
+- **Backend Container App** is deployed separately and integrated via environment variables
+- **Static file serving** configured to serve from `dist` directory
 
 ## Authentication with Microsoft Entra External ID (CIAM)
 
@@ -58,12 +112,12 @@ This project uses Microsoft Entra External ID (CIAM, formerly Azure AD B2C) for 
 1. **Register the Application**
    - Register your frontend app in the Entra External ID (CIAM) tenant.
    - Note your **Client ID** and **Tenant ID**.
-   - Set the redirect URI to your deployed frontend (e.g., `https://aimcs.net/`).
+   - Set the redirect URI to your deployed frontend (e.g., `https://aimcs-frontend-eastus2.azurewebsites.net/`).
 
 2. **Configure App Registration Settings**
    - Go to your CIAM tenant app registration in the Azure portal
    - Navigate to **Authentication** section
-   - **Add Redirect URI**: `https://aimcs.net/` (root path, not `/auth/callback`)
+   - **Add Redirect URI**: `https://aimcs-frontend-eastus2.azurewebsites.net/` (root path, not `/auth/callback`)
    - **Enable ID Tokens**: In the **Token configuration** section, ensure ID tokens are enabled
    - **Configure Implicit grant and hybrid flows**: Enable "ID tokens" under implicit grant settings
    - **Save** the configuration
@@ -101,9 +155,9 @@ This project uses Microsoft Entra External ID (CIAM, formerly Azure AD B2C) for 
        auth: {
          clientId: "<YOUR_CLIENT_ID>",
          authority: "https://<your-tenant>.ciamlogin.com/<tenant-id>/<user-flow>",
-         redirectUri: "https://aimcs.net/",
+         redirectUri: "https://aimcs-frontend-eastus2.azurewebsites.net/",
          knownAuthorities: ["https://<your-tenant>.ciamlogin.com"],
-         postLogoutRedirectUri: "https://aimcs.net/"
+         postLogoutRedirectUri: "https://aimcs-frontend-eastus2.azurewebsites.net/"
        },
        cache: {
          cacheLocation: "sessionStorage",
@@ -155,7 +209,7 @@ This project uses Microsoft Entra External ID (CIAM, formerly Azure AD B2C) for 
    - When a user starts the sign-in flow, Entra External ID automatically uses Microsoft Graph to send the passcode email. **No extra code is needed in your app for this.**
 
 10. **Troubleshooting Authentication**
-   - **Redirect URI Mismatch**: Ensure the redirect URI in your app registration exactly matches `https://aimcs.net/`
+   - **Redirect URI Mismatch**: Ensure the redirect URI in your app registration exactly matches `https://aimcs-frontend-eastus2.azurewebsites.net/`
    - **ID Tokens Not Enabled**: Verify ID tokens are enabled in the app registration's token configuration
    - **User Flow Issues**: Check that the user flow is properly configured and published
    - **API Permissions**: Ensure all required Microsoft Graph permissions are granted and admin consent is given
@@ -198,31 +252,8 @@ A script (`test-ciam-auth.sh`) is included to verify your CIAM endpoints and log
 
 **How to run:**
 ```bash
-chmod +x test-ciam-auth.sh
 ./test-ciam-auth.sh
 ```
-
-**Expected output:**
-- OpenID configuration is found and valid
-- Authorization endpoint returns a login page
-- Token endpoint returns a 400 error for an invalid code (proves endpoint is live)
-
-### 3. Manual Browser Test
-
-You can also test the login flow manually:
-- Open the authorization URL printed by the script in your browser
-- Enter your email address
-- Check your email for the passcode
-- Enter the passcode to complete authentication
-
-If you see the Microsoft login page and can complete the flow, your CIAM setup is correct.
-
----
-
-**If you have issues:**
-- Double-check your user flow name, app registration, and permissions in Azure
-- Make sure the metadata URL returns a valid JSON document with endpoints
-- Reference the [OpenID Configuration](https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com/v2.0/.well-known/openid-configuration?appid=a9ad55e2-d46f-4bad-bce6-c95f1bc43018) for troubleshooting
 
 ## Getting Started
 
@@ -230,6 +261,7 @@ If you see the Microsoft login page and can complete the flow, your CIAM setup i
 
 - Node.js 20 or higher
 - npm or yarn
+- Azure CLI (for deployment)
 
 ### Installation
 
@@ -247,9 +279,10 @@ npm install
 3. Set up environment variables:
 Create a `.env` file in the root directory:
 ```env
-VITE_MODEL_API_URL=https://your-backend-api-url
-VITE_MODEL_API_KEY=your-api-key
-VITE_MODEL_NAME=your-model-name
+VITE_AZURE_OPENAI_ENDPOINT=https://aimcs-foundry.cognitiveservices.azure.com/
+VITE_AZURE_OPENAI_API_KEY=your-api-key
+VITE_AZURE_OPENAI_DEPLOYMENT=model-router
+VITE_BACKEND_API_URL=https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
 ```
 
 4. Start the development server:
@@ -275,12 +308,14 @@ This project is configured for automatic deployment to Azure Web Apps via GitHub
 
 #### Prerequisites
 
-1. Azure Web App created and configured
-2. GitHub repository secrets configured:
+1. Azure Web App created and configured in `eastus2` region
+2. Backend Container App deployed in `eastus2` region
+3. GitHub repository secrets configured:
    - `AZURE_WEBAPP_PUBLISH_PROFILE`
-   - `AZURE_OPENAI_ENDPOINT`
-   - `AZURE_OPENAI_API_KEY`
-   - `AZURE_OPENAI_DEPLOYMENT`
+   - `VITE_AZURE_OPENAI_ENDPOINT`
+   - `VITE_AZURE_OPENAI_API_KEY`
+   - `VITE_AZURE_OPENAI_DEPLOYMENT`
+   - `VITE_BACKEND_API_URL`
 
 #### Deployment Process
 
@@ -299,7 +334,7 @@ If you need to deploy manually:
 npm run build
 
 # Deploy using Azure CLI
-az webapp deployment source config-zip --resource-group <resource-group> --name <webapp-name> --src dist.zip
+az webapp deployment source config-zip --resource-group aimcs-rg-eastus2 --name aimcs-frontend-eastus2 --src dist.zip
 ```
 
 ## Project Structure
@@ -316,6 +351,7 @@ src/
 ├── services/           # API services
 │   ├── azureAIService.js
 │   ├── azureRealtimeService.js
+│   ├── backendApi.js   # Backend API integration
 │   └── modelApi.js
 ├── hooks/              # Custom React hooks
 │   └── useVoiceRecorder.js
@@ -328,9 +364,10 @@ src/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `VITE_MODEL_API_URL` | Backend API URL | Yes |
-| `VITE_MODEL_API_KEY` | API key for authentication | Yes |
-| `VITE_MODEL_NAME` | Default model name | No |
+| `VITE_AZURE_OPENAI_ENDPOINT` | Azure AI Foundry endpoint | Yes |
+| `VITE_AZURE_OPENAI_API_KEY` | AI Foundry API key | Yes |
+| `VITE_AZURE_OPENAI_DEPLOYMENT` | Model deployment name | Yes |
+| `VITE_BACKEND_API_URL` | Backend Container App URL | Yes |
 
 ## Contributing
 
@@ -350,36 +387,82 @@ For support and questions, please contact the Zimax Networks AI Architecture and
 
 ## ⚠️ Region Alignment Requirement (Important)
 
-**Both the frontend (Web App) and backend (container or App Service) must be deployed in the same Azure region as your Azure OpenAI resource and model deployments.**
+**All components must be deployed in the same Azure region as your Azure AI Foundry resource and model deployments.**
 
 - For this project, the region is: **eastus2**
-- If your frontend or backend is in a different region, you may encounter 404 errors or network access issues when calling Azure OpenAI.
-- Always create your resource group, App Service plan, Web App, and backend container in the same region as your Azure OpenAI resource.
+- If any component is in a different region, you may encounter 404 errors or network access issues when calling Azure AI services.
+- Always create your resource group, App Service plan, Web App, and Container Apps in the same region as your Azure AI Foundry resource.
 
 ## Updated Deployment Process (2024)
 
 1. **Create Resource Group and App Service Plan in eastus2**
 2. **Deploy Frontend Web App in eastus2**
-3. **Deploy Backend (container or App Service) in eastus2**
-4. **Set environment variables for both frontend and backend to match your Azure OpenAI resource**
+3. **Deploy Backend Container App in eastus2**
+4. **Set environment variables for both frontend and backend to match your Azure AI Foundry resource**
 5. **Update GitHub Actions workflow to deploy to the correct region and app name**
 6. **(Optional) Move custom domain and SSL to the new Web App**
 
 ### Example Azure CLI for eastus2
 
-```
+```bash
+# Create resource group
 az group create --name aimcs-rg-eastus2 --location eastus2
+
+# Create App Service plan
 az appservice plan create --name aimcs-appservice-plan-eastus2 --resource-group aimcs-rg-eastus2 --sku B1 --is-linux --location eastus2
+
+# Create Web App
 az webapp create --name aimcs-frontend-eastus2 --resource-group aimcs-rg-eastus2 --plan aimcs-appservice-plan-eastus2 --runtime "NODE|20-lts"
-az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group aimcs-rg-eastus2 --settings VITE_AZURE_OPENAI_ENDPOINT="https://aimcs-foundry.cognitiveservices.azure.com/" VITE_AZURE_OPENAI_API_KEY="<your-key>" VITE_AZURE_OPENAI_DEPLOYMENT="model-router"
+
+# Set environment variables
+az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group aimcs-rg-eastus2 --settings \
+  VITE_AZURE_OPENAI_ENDPOINT="https://aimcs-foundry.cognitiveservices.azure.com/" \
+  VITE_AZURE_OPENAI_API_KEY="<your-key>" \
+  VITE_AZURE_OPENAI_DEPLOYMENT="model-router" \
+  VITE_BACKEND_API_URL="https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io"
 ```
 
 ## Lessons Learned / Troubleshooting
 
-- **404 errors from Azure OpenAI** can occur if your Web App or backend is in a different region than your OpenAI resource, even if all environment variables are correct.
+- **404 errors from Azure AI services** can occur if your Web App or backend is in a different region than your AI Foundry resource, even if all environment variables are correct.
 - **Cloud Shell and local dev may work** even when the Web App fails, due to Azure network policies.
 - **Role assignments**: Ensure your GitHub Actions service principal has Contributor access to the new resource group.
 - **Custom domains and SSL** must be reconfigured for new Web Apps in a new region.
-- **Always update your GitHub Actions secrets** with the publish profile for the new Web App. # Updated for AI Foundry deployment
+- **Always update your GitHub Actions secrets** with the publish profile for the new Web App.
+- **Backend integration**: Ensure the backend Container App is in the same region as the frontend for optimal performance.
+
+## Current System Status
+
+### ✅ **Frontend (aimcs-frontend-eastus2)**
+- **Status**: ✅ Operational
+- **URL**: https://aimcs-frontend-eastus2.azurewebsites.net
+- **Region**: eastus2
+- **Runtime**: Node.js 20 LTS
+- **Features**: React 18, Vite, Tailwind CSS, AI integration
+
+### ✅ **Backend (aimcs-backend-eastus2)**
+- **Status**: ✅ Operational
+- **URL**: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+- **Region**: eastus2
+- **Runtime**: Node.js Container App
+- **Features**: Health checks, model management, chat API, speech-to-text
+
+### ✅ **AI Services (aimcs-foundry)**
+- **Status**: ✅ Operational
+- **Endpoint**: https://aimcs-foundry.cognitiveservices.azure.com/
+- **Region**: eastus2
+- **Deployment**: model-router
+- **Models**: GPT-4o Mini, Claude 3 Haiku
+
+### ✅ **Authentication (Microsoft Entra External ID)**
+- **Status**: ✅ Configured
+- **Provider**: CIAM (Customer Identity and Access Management)
+- **Flow**: Email passcode authentication
+- **Integration**: MSAL React
+
+# Updated for AI Foundry deployment
 # Updated deployment source configuration
 # Trigger deployment - Thu Jun 26 18:52:59 MST 2025
+# Trigger deployment with corrected GitHub integration
+# Updated for backend integration fix
+# Fix: Environment variables injected at build time
