@@ -44,15 +44,21 @@ jobs:
       - name: Debug built files
         run: |
           echo "Checking if environment variables were injected:"
-          if [ -f "dist/assets/index-*.js" ]; then
-            echo "Built JS file found:"
+          if [ -d "dist/assets" ]; then
+            echo "Built JS files found:"
             ls -la dist/assets/
-            echo "Checking for environment variables in built file:"
-            grep -o "VITE_AZURE_OPENAI_ENDPOINT" dist/assets/index-*.js || echo "ENDPOINT not found in built file"
-            grep -o "VITE_AZURE_OPENAI_DEPLOYMENT" dist/assets/index-*.js || echo "DEPLOYMENT not found in built file"
-            grep -o "VITE_BACKEND_API_URL" dist/assets/index-*.js || echo "BACKEND_URL not found in built file"
+            echo "Checking for environment variables in built files:"
+            for jsfile in dist/assets/*.js; do
+              if [ -f "$jsfile" ]; then
+                echo "Checking file: $jsfile"
+                grep -o "VITE_AZURE_OPENAI_ENDPOINT" "$jsfile" || echo "ENDPOINT not found in $jsfile"
+                grep -o "VITE_AZURE_OPENAI_DEPLOYMENT" "$jsfile" || echo "DEPLOYMENT not found in $jsfile"
+                grep -o "VITE_BACKEND_API_URL" "$jsfile" || echo "BACKEND_URL not found in $jsfile"
+                echo "---"
+              fi
+            done
           else
-            echo "No built JS files found in dist/assets/"
+            echo "No dist/assets directory found"
             ls -la dist/
           fi
 
