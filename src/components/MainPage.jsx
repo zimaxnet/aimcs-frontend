@@ -13,7 +13,7 @@ export default function MainPage() {
   const messagesEndRef = useRef(null);
 
   // Environment variables
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'wss://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io';
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io';
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
