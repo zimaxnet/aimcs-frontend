@@ -1,7 +1,18 @@
 # AIMCS Frontend
 
-> **Deployment & Authentication Journey:**
-> See [DEPLOYMENT.md](./DEPLOYMENT.md) for a detailed, step-by-step account of how we built, deployed, and debugged the AIMCS frontend with Azure CIAM authentication, including lessons learned and technical solutions.
+> **Migration & Consolidation History:**
+> 
+> In 2024, we migrated and consolidated AIMCS resources for reliability, security, and maintainability:
+> 
+> - **Primary Reason:** The migration was driven by the need to ensure all resources (frontend, backend, and supporting services) are in the same Azure region as the AI resources (Azure AI Foundry), which is required for compatibility, optimal performance, and to avoid cross-region issues.
+> - **Region Alignment:** All resources (frontend, backend, AI services) were migrated to the `eastus2` Azure region to ensure optimal latency and compatibility, and to simplify management.
+> - **Backend Migration:** The backend Node.js API was moved from an older Azure Container App environment in `westus` to a new environment in `eastus2`. DNS and environment variables were updated, and old resources were cleaned up.
+> - **Frontend Migration:** The frontend was redeployed to an Azure Web App in `eastus2`, with custom domain binding and SSL.
+> - **App Service Domain & SSL:** We used Azure App Service Domain to register and manage `aimcs.net` and `api.aimcs.net`. This required careful DNS setup (A, CNAME, TXT records), domain verification, and SSL certificate management. Azure DNSSEC was enabled for security. The process included troubleshooting Azure's custom domain verification and SSL binding quirks.
+> - **Repository Consolidation:** We consolidated from two separate repos (frontend and backend) to a single repo (this one). While not a monorepo, this repo now contains all frontend code and documentation/configuration for backend container deployment, making it the single source of truth for AIMCS frontend and deployment info.
+> - **Lessons Learned:** DNS propagation and Azure's custom domain verification can be slow and require patience. Environment variables for Vite must be set in Azure App Service, and backend URLs must be updated after migration. Azure handles DNSSEC and certificate renewal automatically once set up.
+> 
+> For a step-by-step technical account, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 The frontend application for the AI Multimodal Customer System (AIMCS), created by the Zimax Networks AI Architecture and Engineering Team.
 
