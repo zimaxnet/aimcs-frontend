@@ -32,6 +32,17 @@ jobs:
           echo "DEPLOYMENT value: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
           echo "BACKEND_URL value: ${{ secrets.VITE_BACKEND_API_URL }}"
           echo "API_KEY exists: ${{ secrets.VITE_AZURE_OPENAI_API_KEY != '' }}"
+          
+          # Set environment variables for the build step
+          echo "VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" >> $GITHUB_ENV
+          echo "VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" >> $GITHUB_ENV
+          echo "VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" >> $GITHUB_ENV
+          echo "VITE_BACKEND_API_URL=${{ secrets.VITE_BACKEND_API_URL }}" >> $GITHUB_ENV
+          
+          echo "Environment variables set for build step:"
+          echo "VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
+          echo "VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
+          echo "VITE_BACKEND_API_URL: ${{ secrets.VITE_BACKEND_API_URL }}"
 
       - name: Build Vite app
         env:
