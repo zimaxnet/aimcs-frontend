@@ -14,6 +14,16 @@ The frontend application for the AI Multimodal Customer System (AIMCS), created 
 - **AI Services**: Azure AI Foundry with model-router deployment
 - **Region**: All components deployed in `eastus2` for optimal performance
 
+### ✅ **CORS Issue Resolution**
+
+**Status**: **RESOLVED** - Backend CORS configuration has been fixed and tested.
+
+**Issue**: Frontend was receiving CORS errors when attempting to connect to the backend API.
+
+**Solution**: Backend CORS configuration was updated to properly allow requests from the frontend domain.
+
+**Testing**: Use the "Test Backend Only" button in the deployed application to verify connectivity.
+
 ## Overview
 
 This is a React 18 application built with Vite, featuring:
