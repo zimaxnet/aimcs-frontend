@@ -22,7 +22,7 @@ jobs:
         run: |
           # Clean up to fix Rollup issue
           rm -rf node_modules package-lock.json
-          npm ci
+          npm install
 
       - name: Debug secrets before build
         run: |
