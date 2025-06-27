@@ -467,3 +467,4 @@ az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group 
 # Updated for backend integration fix
 # Fix: Environment variables injected at build time
 # Trigger deployment with backend URL fix
+# Updated AI secrets for eastus2 migration - Thu Jun 26 19:45:53 MST 2025
