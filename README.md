@@ -21,9 +21,23 @@ The frontend application for the AI Multimodal Customer System (AIMCS), created 
 **✅ LIVE SYSTEM - FULLY OPERATIONAL**
 
 - **Frontend**: https://aimcs-frontend-eastus2.azurewebsites.net
+- **Frontend Custom Domain**: https://aimcs.net (configured, may need DNS propagation)
 - **Backend**: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+- **Backend Custom Domain**: https://api.aimcs.net (DNS configured, binding in progress)
 - **AI Services**: Azure AI Foundry with model-router deployment
 - **Region**: All components deployed in `eastus2` for optimal performance
+
+### ✅ **Recent Fixes & Updates**
+
+**Backend Port Configuration**: **RESOLVED** - Backend target port updated to 3000 to match the application's listening port.
+
+**Custom Domain Status**:
+- **Frontend (aimcs.net)**: DNS configured, SSL certificate active, domain binding enabled
+- **Backend (api.aimcs.net)**: DNS configured, SSL certificate active, domain binding in progress
+
+**Current Working URLs**:
+- Frontend: https://aimcs-frontend-eastus2.azurewebsites.net (fully operational)
+- Backend: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io (fully operational)
 
 ### ✅ **CORS Issue Resolution**
 
@@ -77,6 +91,7 @@ This is a React 18 application built with Vite, featuring:
 ├─────────────────────────────────────────────────────────────┤
 │  Frontend (React + Vite)                                    │
 │  https://aimcs-frontend-eastus2.azurewebsites.net           │
+│  Custom Domain: https://aimcs.net                           │
 │  ├── AI Integration (Azure AI Foundry)                      │
 │  ├── Authentication (Microsoft Entra External ID)           │
 │  └── Backend API Client                                     │
@@ -84,6 +99,7 @@ This is a React 18 application built with Vite, featuring:
 │  Backend (Node.js Container App)                            │
 │  https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.  │
 │  azurecontainerapps.io                                      │
+│  Custom Domain: https://api.aimcs.net (in progress)         │
 │  ├── Health Checks                                          │
 │  ├── Model Management                                       │
 │  ├── Chat API                                               │
