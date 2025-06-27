@@ -52,6 +52,6 @@ jobs:
             --name aimcs-frontend-eastus2 \
             --resource-group aimcs-rg-eastus2 \
             --settings \
-            VITE_AZURE_OPENAI_ENDPOINT="${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" \
-            VITE_AZURE_OPENAI_API_KEY="${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" \
-            VITE_AZURE_OPENAI_DEPLOYMENT="${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" 
+            VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }} \
+            VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }} \
+            VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }} 
