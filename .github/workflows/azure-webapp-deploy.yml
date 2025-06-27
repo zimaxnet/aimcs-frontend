@@ -37,7 +37,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: aimcs-frontend
+          app-name: aimcs-frontend-eastus2
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./dist
 
@@ -49,8 +49,8 @@ jobs:
       - name: Set Azure Web App environment variables
         run: |
           az webapp config appsettings set \
-            --name aimcs-frontend \
-            --resource-group aimcs-rg \
+            --name aimcs-frontend-eastus2 \
+            --resource-group aimcs-rg-eastus2 \
             --settings \
             VITE_AZURE_OPENAI_ENDPOINT="${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" \
             VITE_AZURE_OPENAI_API_KEY="${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" \
