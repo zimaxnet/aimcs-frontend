@@ -381,3 +381,4 @@ az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group 
 - **Role assignments**: Ensure your GitHub Actions service principal has Contributor access to the new resource group.
 - **Custom domains and SSL** must be reconfigured for new Web Apps in a new region.
 - **Always update your GitHub Actions secrets** with the publish profile for the new Web App. # Updated for AI Foundry deployment
+# Updated deployment source configuration
