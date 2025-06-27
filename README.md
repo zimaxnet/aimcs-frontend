@@ -124,6 +124,24 @@ The system uses the following environment variables:
 | `VITE_AZURE_OPENAI_DEPLOYMENT` | Model deployment name | `model-router` |
 | `VITE_BACKEND_API_URL` | Backend Container App URL | `https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io` |
 
+## AI Model Routing & Deployment
+
+AIMCS dynamically selects the optimal Azure OpenAI model for each request type:
+
+- **Text chat**: Uses `model-router`, which automatically selects the best LLM (GPT-4.1, GPT-4.1-mini, GPT-4.1-nano, o4-mini) for each query based on complexity, cost, and performance. In our tests, model-router provided up to 60% cost savings with similar accuracy compared to using GPT-4.1 only. Context length is up to 200,000 input tokens and 32,768 output tokens (as of 2025-05-19 version). See [Model Router documentation](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/model-router).
+- **Audio/voice features**: Uses `gpt-4o-mini-audio-preview-2`, which supports audio input/output for real-time voice chat and speech features. This model is used for all audio-based requests and requires audio content in the request or response.
+
+### Model Routing Logic
+- The backend automatically routes text chat to `model-router` and audio/voice requests to `gpt-4o-mini-audio-preview-2`.
+- This ensures high quality results, optimal cost, and support for advanced audio features.
+
+### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AZURE_OPENAI_DEPLOYMENT` | Model deployment for text chat | `model-router` |
+| `AZURE_OPENAI_AUDIO_DEPLOYMENT` | Model deployment for audio/voice | `gpt-4o-mini-audio-preview-2` |
+
 ## Monorepo & Environment Variable Handling
 
 - The project uses a monorepo structure with `aimcs-frontend` as a submodule.
