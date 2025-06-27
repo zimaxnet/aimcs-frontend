@@ -153,6 +153,32 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// WebSocket endpoint route handler
+app.get('/ws/audio', (req, res) => {
+  // This route exists to handle the initial HTTP request
+  // The actual WebSocket upgrade is handled by the WebSocket server
+  res.status(426).json({ 
+    error: 'Upgrade Required',
+    message: 'This endpoint requires WebSocket upgrade',
+    upgrade: 'websocket'
+  });
+});
+
+// WebSocket upgrade handler
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+  
+  if (pathname === '/ws/audio') {
+    console.log('🔄 WebSocket upgrade request for /ws/audio');
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    console.log(`❌ WebSocket upgrade rejected for path: ${pathname}`);
+    socket.destroy();
+  }
+});
+
 // Initialize speech recognizer for a connection
 const initializeSpeechRecognizer = (connectionId, ws) => {
   if (!AZURE_SPEECH_KEY) {

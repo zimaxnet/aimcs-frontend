@@ -40,19 +40,19 @@ jobs:
           echo "VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" >> $GITHUB_ENV
-          echo "VITE_BACKEND_URL=https://api.aimcs.net" >> $GITHUB_ENV
+          echo "VITE_BACKEND_URL=https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io" >> $GITHUB_ENV
           
           echo "Environment variables set for build step:"
           echo "VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
           echo "VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
-          echo "VITE_BACKEND_URL: https://api.aimcs.net"
+          echo "VITE_BACKEND_URL: https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io"
 
       - name: Build Vite app
         env:
           VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}
           VITE_AZURE_OPENAI_API_KEY: ${{ secrets.VITE_AZURE_OPENAI_API_KEY }}
           VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}
-          VITE_BACKEND_URL: https://api.aimcs.net
+          VITE_BACKEND_URL: https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io
         run: npm run build
 
       - name: Debug built files
@@ -103,7 +103,7 @@ jobs:
             VITE_AZURE_OPENAI_ENDPOINT="${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" \
             VITE_AZURE_OPENAI_API_KEY="${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" \
             VITE_AZURE_OPENAI_DEPLOYMENT="${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" \
-            VITE_BACKEND_URL="https://api.aimcs.net"
+            VITE_BACKEND_URL="https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io"
 
       - name: Debug secrets
         run: |
