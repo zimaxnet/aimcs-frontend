@@ -32,6 +32,35 @@ This is the backend server for the AIMCS (AI Multimodal Customer System) with re
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Real-Time Audio/AI Flow
+
+```mermaid
+flowchart TD
+  A["Frontend (Browser)"] -- "WebSocket: /ws/audio" --> B["Backend (Node.js Container App)"]
+  B -- "HTTP: Speech-to-Text API" --> C["Azure Speech Services"]
+  B -- "HTTP: Chat Completion API" --> D["Azure OpenAI"]
+  C -- "Transcript (text)" --> B
+  D -- "AI Response (text)" --> B
+  B -- "WebSocket: AI/Transcript Response" --> A
+
+  subgraph "Azure Cloud"
+    C
+    D
+  end
+
+  style A fill:#e0f7fa,stroke:#00796b
+  style B fill:#fff3e0,stroke:#f57c00
+  style C fill:#e8eaf6,stroke:#3949ab
+  style D fill:#f3e5f5,stroke:#8e24aa
+```
+
+**Flow Explanation:**
+- The frontend streams audio to the backend via WebSocket (`/ws/audio`).
+- The backend can send the audio to Azure Speech Services for transcription.
+- The backend can send the transcript to Azure OpenAI for an AI response.
+- The backend sends the transcript and/or AI response back to the frontend via WebSocket.
+- All communication with Azure services is via HTTP APIs from the backend (never direct from the browser).
+
 ## 📡 **API Endpoints**
 
 ### HTTP Endpoints

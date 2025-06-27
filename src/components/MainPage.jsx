@@ -1,215 +1,304 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function MainPage() {
-  const [aiStatus, setAiStatus] = useState('Not tested');
-  const [backendStatus, setBackendStatus] = useState('Not tested');
-  const [aiResponse, setAiResponse] = useState('');
-  const [backendResponse, setBackendResponse] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const mediaRecorderRef = useRef(null);
+  const websocketRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
   // Environment variables
-  const aiEndpoint = import.meta.env.VITE_AZURE_OPENAI_ENDPOINT;
-  const aiDeployment = import.meta.env.VITE_AZURE_OPENAI_DEPLOYMENT;
-  const aiApiKey = import.meta.env.VITE_AZURE_OPENAI_API_KEY;
   const backendUrl = import.meta.env.VITE_BACKEND_API_URL;
 
-  // Test AI Connection
-  const testAI = async () => {
-    setLoading(true);
-    setError('');
-    setAiResponse('');
-    
-    if (!aiEndpoint || !aiDeployment || !aiApiKey) {
-      setAiStatus('❌ Missing environment variables');
-      setError('AI environment variables are not configured');
-      setLoading(false);
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Connect to WebSocket
+  const connectWebSocket = async () => {
+    if (!backendUrl) {
+      setError('Backend URL not configured');
       return;
     }
 
     try {
-      setAiStatus('Testing...');
-      const url = `${aiEndpoint}openai/deployments/${aiDeployment}/chat/completions?api-version=2024-10-01-preview`;
+      const url = new URL(backendUrl);
+      const wsUrl = `${url.protocol === 'https:' ? 'wss:' : 'ws:'}//${url.host}/ws/audio`;
       
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': aiApiKey,
-        },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Hello! Please respond with a simple greeting.' }],
-          max_tokens: 50,
-        }),
+      const ws = new WebSocket(wsUrl);
+      websocketRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        setError('');
+        addMessage('System connected', 'system');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'chat_response') {
+            addMessage(data.message, 'ai');
+          } else if (data.type === 'connection') {
+            addMessage('Ready to chat', 'system');
+          }
+        } catch (e) {
+          console.log('Raw message:', event.data);
+        }
+      };
+
+      ws.onerror = (error) => {
+        setError(`Connection error: ${error.message}`);
+        setIsConnected(false);
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        addMessage('Connection lost', 'system');
+      };
+
+    } catch (err) {
+      setError(`WebSocket error: ${err.message}`);
+    }
+  };
+
+  // Send chat message
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = inputMessage.trim();
+    setInputMessage('');
+    addMessage(userMessage, 'user');
+
+    if (websocketRef.current?.readyState === WebSocket.OPEN) {
+      // Send via WebSocket
+      const chatMessage = {
+        type: 'chat',
+        message: userMessage,
+        timestamp: new Date().toISOString()
+      };
+      websocketRef.current.send(JSON.stringify(chatMessage));
+    } else {
+      // Fallback to HTTP API
+      try {
+        setLoading(true);
+        const response = await fetch(`${backendUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMessage })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          addMessage(data.message, 'ai');
+        } else {
+          addMessage('Sorry, I could not process your message.', 'error');
+        }
+      } catch (err) {
+        addMessage('Connection error. Please try again.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Start recording audio
+  const startRecording = async () => {
+    if (!isConnected) {
+      await connectWebSocket();
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000
+        } 
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
 
-      const data = await response.json();
-      setAiStatus('✅ Connected');
-      setAiResponse(data.choices?.[0]?.message?.content || 'No response content');
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const audioData = {
+              type: 'audio',
+              data: reader.result.split(',')[1],
+              timestamp: new Date().toISOString()
+            };
+            websocketRef.current.send(JSON.stringify(audioData));
+          };
+          reader.readAsDataURL(event.data);
+        }
+      };
+
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      addMessage('🎤 Recording...', 'system');
+
     } catch (err) {
-      setAiStatus('❌ Failed');
-      setError(`AI Error: ${err.message}`);
-    } finally {
-      setLoading(false);
+      setError(`Microphone access failed: ${err.message}`);
     }
   };
 
-  // Test Backend Connection
-  const testBackend = async () => {
-    setLoading(true);
-    setError('');
-    setBackendResponse('');
-    
-    if (!backendUrl) {
-      setBackendStatus('❌ Missing backend URL');
-      setError('Backend URL is not configured');
-      setLoading(false);
-      return;
+  // Stop recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+      addMessage('⏹️ Recording stopped', 'system');
     }
+  };
 
-    try {
-      setBackendStatus('Testing...');
-      const response = await fetch(`${backendUrl}/health`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  // Add message to chat
+  const addMessage = (message, type = 'user') => {
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      message,
+      type,
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+  };
+
+  // Handle Enter key
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Connect on component mount
+  useEffect(() => {
+    connectWebSocket();
+    return () => {
+      if (websocketRef.current) {
+        websocketRef.current.close();
       }
-
-      const data = await response.json();
-      setBackendStatus('✅ Connected');
-      setBackendResponse(JSON.stringify(data, null, 2));
-    } catch (err) {
-      setBackendStatus('❌ Failed');
-      setError(`Backend Error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Test both connections
-  const testAll = async () => {
-    setLoading(true);
-    setError('');
-    setAiResponse('');
-    setBackendResponse('');
-    
-    await Promise.all([testAI(), testBackend()]);
-    setLoading(false);
-  };
+    };
+  }, []);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-        AIMCS - AI & Backend Connection Test
-      </h1>
-      
-      {/* Environment Variables Status */}
-      <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <h2 className="font-semibold text-gray-800 mb-3">Configuration Status:</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${aiEndpoint ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">AI Endpoint:</span>
-            <span className="ml-2 text-gray-600">{aiEndpoint ? '✅ Set' : '❌ Missing'}</span>
-          </div>
-          <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${aiDeployment ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">AI Deployment:</span>
-            <span className="ml-2 text-gray-600">{aiDeployment ? '✅ Set' : '❌ Missing'}</span>
-          </div>
-          <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${aiApiKey ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">AI API Key:</span>
-            <span className="ml-2 text-gray-600">{aiApiKey ? '✅ Set' : '❌ Missing'}</span>
-          </div>
-          <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${backendUrl ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">Backend URL:</span>
-            <span className="ml-2 text-gray-600">{backendUrl ? '✅ Set' : '❌ Missing'}</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
+      {/* Header */}
+      <div className="text-center py-12">
+        <h1 className="text-5xl font-bold text-gray-800 mb-4">
+          AI Multimodal Customer System
+        </h1>
+        <p className="text-xl text-gray-600">
+          Talk or type to interact with AI
+        </p>
       </div>
 
-      {/* Test Buttons */}
-      <div className="flex flex-wrap gap-4 mb-6 justify-center">
-        <button
-          onClick={testAll}
-          disabled={loading}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-        >
-          {loading ? 'Testing...' : 'Test All Connections'}
-        </button>
-        <button
-          onClick={testAI}
-          disabled={loading}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-        >
-          Test AI Only
-        </button>
-        <button
-          onClick={testBackend}
-          disabled={loading}
-          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-        >
-          Test Backend Only
-        </button>
-      </div>
-
-      {/* Status Display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* AI Status */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h3 className="font-semibold text-green-800 mb-2">AI Connection Status</h3>
-          <div className="text-lg font-medium mb-2">{aiStatus}</div>
-          {aiResponse && (
-            <div className="mt-3">
-              <h4 className="font-medium text-green-700 mb-1">Response:</h4>
-              <div className="bg-white p-3 rounded border text-sm text-gray-700">
-                {aiResponse}
-              </div>
+      {/* Main Content */}
+      <div className="flex-1 max-w-4xl mx-auto w-full px-6 pb-6">
+        {/* Chat Messages */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 h-96 overflow-y-auto">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              Start a conversation by typing a message or using the microphone
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    msg.type === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : msg.type === 'ai'
+                      ? 'bg-gray-200 text-gray-800'
+                      : msg.type === 'system'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    <div className="text-sm">{msg.message}</div>
+                    <div className="text-xs opacity-70 mt-1">{msg.timestamp}</div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
 
-        {/* Backend Status */}
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <h3 className="font-semibold text-purple-800 mb-2">Backend Connection Status</h3>
-          <div className="text-lg font-medium mb-2">{backendStatus}</div>
-          {backendResponse && (
-            <div className="mt-3">
-              <h4 className="font-medium text-purple-700 mb-1">Response:</h4>
-              <div className="bg-white p-3 rounded border text-sm text-gray-700 overflow-auto max-h-32">
-                <pre>{backendResponse}</pre>
-              </div>
+        {/* Input Area */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex gap-4">
+            {/* Microphone Button */}
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={loading}
+              className={`p-4 rounded-full text-white font-bold transition-all ${
+                isRecording 
+                  ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              title={isRecording ? 'Stop Recording' : 'Start Recording'}
+            >
+              {isRecording ? '⏹️' : '🎤'}
+            </button>
+
+            {/* Text Input */}
+            <div className="flex-1">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message here..."
+                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows="3"
+                disabled={loading}
+              />
+            </div>
+
+            {/* Send Button */}
+            <button
+              onClick={sendMessage}
+              disabled={!inputMessage.trim() || loading}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {loading ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-red-700 text-sm">{error}</div>
             </div>
           )}
+
+          {/* Connection Status */}
+          <div className="mt-4 text-sm text-gray-600">
+            Status: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          </div>
         </div>
       </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-red-800 mb-2">Error</h3>
-          <div className="text-red-700">{error}</div>
-        </div>
-      )}
-
-      {/* Environment Variables Debug */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-800 mb-2">Debug Information</h3>
-        <div className="text-sm text-blue-700 space-y-1">
-          <div><strong>AI Endpoint:</strong> {aiEndpoint || 'Not set'}</div>
-          <div><strong>AI Deployment:</strong> {aiDeployment || 'Not set'}</div>
-          <div><strong>AI API Key:</strong> {aiApiKey ? '***SET***' : 'Not set'}</div>
-          <div><strong>Backend URL:</strong> {backendUrl || 'Not set'}</div>
-        </div>
-      </div>
+      {/* Footer */}
+      <footer className="text-center py-6 bg-white border-t">
+        <p className="text-gray-600">
+          Developed by Zimax AI
+        </p>
+      </footer>
     </div>
   );
-} // Force rebuild Thu Jun 26 20:18:52 MST 2025
-// Trigger deployment Thu Jun 26 20:26:49 MST 2025
-// Redeploy Thu Jun 26 20:32:47 MST 2025
+}
