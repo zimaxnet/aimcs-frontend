@@ -22,7 +22,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // 1. Get text from o4-mini
-    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-12-01-preview`;
+    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2025-01-01-preview`;
     const openaiResponse = await fetch(openaiUrl, {
       method: 'POST',
       headers: {
@@ -34,8 +34,7 @@ app.post('/api/chat', async (req, res) => {
           { role: 'system', content: 'You are a helpful AI assistant.' },
           { role: 'user', content: message }
         ],
-        max_tokens: 500,
-        temperature: 0.7,
+        max_completion_tokens: 1000,
         response_format: { type: 'text' }
       }),
     });
