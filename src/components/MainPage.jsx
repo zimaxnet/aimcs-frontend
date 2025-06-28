@@ -250,6 +250,11 @@ const MainPage = () => {
             </div>
           )}
         </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8 pt-4 border-t border-gray-700">
+          <p className="text-gray-400 text-sm">Powered by <span className="text-blue-400 font-semibold">Zimax Networks AI</span></p>
+        </div>
       </div>
     </div>
   );
