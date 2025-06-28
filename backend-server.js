@@ -6,7 +6,8 @@ const app = express();
 // Environment variables
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
-const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-tts';
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'o4-mini';
+const AZURE_OPENAI_TTS_DEPLOYMENT = process.env.AZURE_OPENAI_TTS_DEPLOYMENT || 'gpt-4o-mini-tts';
 const AZURE_OPENAI_AUDIO_DEPLOYMENT = process.env.AZURE_OPENAI_AUDIO_DEPLOYMENT || 'gpt-4o-mini-audio-preview';
 const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
 const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION || 'eastus2';
@@ -81,8 +82,8 @@ app.post('/api/chat', async (req, res) => {
 
     console.log(`🤖 Sending message to Azure OpenAI: "${message}"`);
 
-    // Call Azure OpenAI
-    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${getModelDeployment(false)}/chat/completions?api-version=2024-10-01-preview`;
+    // First, process the input with o4-mini to get the text response
+    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=2024-12-01-preview`;
     
     const openaiResponse = await fetch(openaiUrl, {
       method: 'POST',
@@ -110,18 +111,50 @@ app.post('/api/chat', async (req, res) => {
     const openaiData = await openaiResponse.json();
     const aiResponse = openaiData.choices?.[0]?.message?.content || 'No response from AI';
 
-    console.log(`✅ Azure OpenAI response: "${aiResponse}"`);
+    console.log(`✅ o4-mini response: "${aiResponse}"`);
 
-    // Check if this is a TTS model response (should include audio data)
+    // Now generate TTS audio using gpt-4o-mini-tts
     let audioData = null;
     let audioFormat = null;
     
-    if (openaiData.choices?.[0]?.message?.content?.[0]?.type === 'audio') {
-      // Extract audio data from TTS model response
-      const audioContent = openaiData.choices[0].message.content[0];
-      audioData = audioContent.audio_url?.url?.split(',')[1]; // Remove data:audio/mp3;base64, prefix
-      audioFormat = audioContent.audio_url?.url?.split(';')[0]?.split(':')[1] || 'audio/mp3';
-      console.log(`✅ TTS audio received from model, format: ${audioFormat}`);
+    try {
+      console.log(`🎤 Generating TTS with gpt-4o-mini-tts for: "${aiResponse}"`);
+      
+      const ttsUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${AZURE_OPENAI_TTS_DEPLOYMENT}/chat/completions?api-version=2024-12-01-preview`;
+      
+      const ttsResponse = await fetch(ttsUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': AZURE_OPENAI_API_KEY,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: aiResponse }
+          ],
+          max_tokens: 500,
+          temperature: 0.7
+        }),
+      });
+
+      if (ttsResponse.ok) {
+        const ttsData = await ttsResponse.json();
+        
+        // Check if TTS model returned audio data
+        if (ttsData.choices?.[0]?.message?.content?.[0]?.type === 'audio') {
+          const audioContent = ttsData.choices[0].message.content[0];
+          audioData = audioContent.audio_url?.url?.split(',')[1]; // Remove data:audio/mp3;base64, prefix
+          audioFormat = audioContent.audio_url?.url?.split(';')[0]?.split(':')[1] || 'audio/mp3';
+          console.log(`✅ TTS audio generated, format: ${audioFormat}`);
+        } else {
+          console.log(`⚠️ TTS model did not return audio data`);
+        }
+      } else {
+        console.log(`⚠️ TTS generation failed: ${ttsResponse.status}`);
+      }
+    } catch (ttsError) {
+      console.error(`❌ TTS error:`, ttsError);
+      // Don't fail the entire response if TTS fails
     }
 
     const response = {
@@ -182,7 +215,7 @@ app.post('/api/audio', async (req, res) => {
 
     console.log(`🎤 Processing audio with GPT-4o audio model, size: ${audioData.length} bytes, format: ${audioFormat || 'unknown'}`);
     
-    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${getModelDeployment(true)}/chat/completions?api-version=2024-10-01-preview`;
+    const openaiUrl = `${AZURE_OPENAI_ENDPOINT}openai/deployments/${getModelDeployment(true)}/chat/completions?api-version=2024-12-01-preview`;
     
     // Determine the correct MIME type for the audio data
     let mimeType = 'audio/wav';

@@ -4,11 +4,8 @@ const MainPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   
   const messagesEndRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
 
   const BACKEND_URL = 'https://api.aimcs.net';
 
@@ -61,80 +58,6 @@ const MainPage = () => {
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      
-      audioChunksRef.current = [];
-      
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-      
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processAudio(audioBlob);
-      };
-      
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      addMessage('System', 'Recording started...', 'system');
-      
-    } catch (error) {
-      console.error('❌ Error starting recording:', error);
-      addMessage('System', 'Failed to start recording', 'error');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      addMessage('System', 'Processing audio...', 'system');
-      
-      // Stop all tracks
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const processAudio = async (audioBlob) => {
-    setIsLoading(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Audio = reader.result.split(',')[1];
-        const audioFormat = audioBlob.type;
-        
-        const response = await fetch(`${BACKEND_URL}/api/audio`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            audioData: base64Audio,
-            audioFormat: audioFormat
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          addMessage('AI', data.message, 'ai', data.audioData, data.audioFormat);
-        } else {
-          addMessage('System', 'Audio processing failed', 'error');
-        }
-      };
-      reader.readAsDataURL(audioBlob);
-    } catch (error) {
-      console.error('❌ Error processing audio:', error);
-      addMessage('System', 'Error processing audio', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const playAudio = (audioData, audioFormat) => {
     if (!audioData) return;
     
@@ -172,8 +95,8 @@ const MainPage = () => {
         <div className="bg-gray-800 rounded-lg p-4 mb-4 h-96 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 mt-20">
-              <p>Start a conversation with text or voice!</p>
-              <p className="text-sm mt-2">Click "Start Recording" to use voice chat</p>
+              <p>Start a conversation with text!</p>
+              <p className="text-sm mt-2">Type your message and press Enter or click Send</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -227,26 +150,10 @@ const MainPage = () => {
             </button>
           </div>
 
-          {/* Audio Controls */}
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isLoading}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                isRecording
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'
-              } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isRecording ? '🛑 Stop Recording' : '🎤 Start Recording'}
-            </button>
-          </div>
-
           {/* Status */}
-          {(isLoading || isRecording) && (
+          {isLoading && (
             <div className="text-center text-gray-400">
-              {isLoading && '🔄 Processing...'}
-              {isRecording && '🎤 Recording...'}
+              🔄 Processing...
             </div>
           )}
         </div>
