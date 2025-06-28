@@ -40,19 +40,19 @@ jobs:
           echo "VITE_AZURE_OPENAI_ENDPOINT=${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_API_KEY=${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" >> $GITHUB_ENV
           echo "VITE_AZURE_OPENAI_DEPLOYMENT=${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" >> $GITHUB_ENV
-          echo "VITE_BACKEND_URL=https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io" >> $GITHUB_ENV
+          echo "VITE_BACKEND_URL=https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io" >> $GITHUB_ENV
           
           echo "Environment variables set for build step:"
           echo "VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}"
           echo "VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}"
-          echo "VITE_BACKEND_URL: https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io"
+          echo "VITE_BACKEND_URL: https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io"
 
       - name: Build Vite app
         env:
           VITE_AZURE_OPENAI_ENDPOINT: ${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}
           VITE_AZURE_OPENAI_API_KEY: ${{ secrets.VITE_AZURE_OPENAI_API_KEY }}
           VITE_AZURE_OPENAI_DEPLOYMENT: ${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}
-          VITE_BACKEND_URL: https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io
+          VITE_BACKEND_URL: https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io
         run: npm run build
 
       - name: Debug built files
@@ -85,7 +85,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: aimcs-frontend-eastus2
+          app-name: aimcs
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./dist
 
@@ -97,13 +97,13 @@ jobs:
       - name: Set Azure Web App environment variables
         run: |
           az webapp config appsettings set \
-            --name aimcs-frontend-eastus2 \
+            --name aimcs \
             --resource-group aimcs-rg-eastus2 \
             --settings \
             VITE_AZURE_OPENAI_ENDPOINT="${{ secrets.VITE_AZURE_OPENAI_ENDPOINT }}" \
             VITE_AZURE_OPENAI_API_KEY="${{ secrets.VITE_AZURE_OPENAI_API_KEY }}" \
             VITE_AZURE_OPENAI_DEPLOYMENT="${{ secrets.VITE_AZURE_OPENAI_DEPLOYMENT }}" \
-            VITE_BACKEND_URL="https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io"
+            VITE_BACKEND_URL="https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io"
 
       - name: Debug secrets
         run: |
