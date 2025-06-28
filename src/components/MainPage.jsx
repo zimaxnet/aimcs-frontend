@@ -213,28 +213,28 @@ export default function MainPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+    <div className="max-w-4xl mx-auto p-6 bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+      <h1 className="text-3xl font-bold mb-6 text-white text-center">
         🎤 AIMCS Voice & Text Chat
       </h1>
 
       {/* Configuration Status */}
-      <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <h2 className="font-semibold text-gray-800 mb-3">Configuration Status:</h2>
+      <div className="bg-gray-700 p-4 rounded-lg mb-6 border border-gray-600">
+        <h2 className="font-semibold text-white mb-3">Configuration Status:</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${backendUrl ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">Backend URL:</span>
-            <span className="ml-2 text-gray-600">{backendUrl ? '✅ Set' : '❌ Missing'}</span>
+            <span className={`w-3 h-3 rounded-full mr-2 ${backendUrl ? 'bg-green-400' : 'bg-red-400'}`}></span>
+            <span className="font-medium text-gray-200">Backend URL:</span>
+            <span className="ml-2 text-gray-300">{backendUrl ? '✅ Set' : '❌ Missing'}</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded-full mr-2 bg-green-500"></span>
-            <span className="font-medium">Audio Processing:</span>
-            <span className="ml-2 text-gray-600">✅ HTTP-Based</span>
+            <span className="w-3 h-3 rounded-full mr-2 bg-green-400"></span>
+            <span className="font-medium text-gray-200">Audio Processing:</span>
+            <span className="ml-2 text-gray-300">✅ HTTP-Based</span>
           </div>
         </div>
         {backendUrl && (
-          <div className="mt-2 text-xs text-gray-600">
+          <div className="mt-2 text-xs text-gray-400">
             <strong>Backend URL:</strong> {backendUrl}
           </div>
         )}
@@ -242,23 +242,23 @@ export default function MainPage() {
 
       {/* Status Indicators */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Connection Status</h3>
-          <div className="text-lg font-medium">
+        <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+          <h3 className="font-semibold mb-2 text-white">Connection Status</h3>
+          <div className="text-lg font-medium text-green-400">
             ✅ HTTP API Ready
           </div>
         </div>
         
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Recording Status</h3>
-          <div className="text-lg font-medium">
+        <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+          <h3 className="font-semibold mb-2 text-white">Recording Status</h3>
+          <div className="text-lg font-medium text-blue-400">
             {isRecording ? '🎙️ Recording' : '⏸️ Stopped'}
           </div>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Processing</h3>
-          <div className="text-lg font-medium">
+        <div className="bg-gray-700 border border-gray-600 rounded-lg p-4">
+          <h3 className="font-semibold mb-2 text-white">Processing</h3>
+          <div className="text-lg font-medium text-purple-400">
             {loading ? '🔄 Processing...' : '✅ Ready'}
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function MainPage() {
         <button
           onClick={startRecording}
           disabled={isRecording || loading}
-          className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
         >
           🎙️ Start Recording
         </button>
@@ -277,14 +277,14 @@ export default function MainPage() {
         <button
           onClick={stopRecording}
           disabled={!isRecording}
-          className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
         >
           ⏹️ Stop Recording
         </button>
         
         <button
           onClick={clearMessages}
-          className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+          className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors"
         >
           🗑️ Clear Chat
         </button>
@@ -292,21 +292,21 @@ export default function MainPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-red-800 mb-2">Error</h3>
-          <div className="text-red-700">{error}</div>
+        <div className="bg-red-900 border border-red-700 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-red-200 mb-2">Error</h3>
+          <div className="text-red-300">{error}</div>
         </div>
       )}
 
       {/* Chat Messages */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+      <div className="bg-gray-700 border border-gray-600 rounded-lg p-4 mb-6">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="font-semibold text-gray-800">Chat Messages</h3>
-          <span className="text-sm text-gray-600">{messages.length} messages</span>
+          <h3 className="font-semibold text-white">Chat Messages</h3>
+          <span className="text-sm text-gray-300">{messages.length} messages</span>
         </div>
-        <div className="bg-white rounded border p-3 h-64 overflow-y-auto">
+        <div className="bg-gray-800 rounded border border-gray-600 p-3 h-64 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="text-gray-500 text-center py-8">
+            <div className="text-gray-400 text-center py-8">
               Start typing or recording to begin chatting with AI!
             </div>
           ) : (
@@ -314,11 +314,11 @@ export default function MainPage() {
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    msg.type === 'user' ? 'bg-blue-500 text-white' :
-                    msg.type === 'ai' ? 'bg-green-500 text-white' :
-                    msg.type === 'system' ? 'bg-gray-500 text-white' :
-                    msg.type === 'error' ? 'bg-red-500 text-white' :
-                    'bg-gray-300 text-gray-800'
+                    msg.type === 'user' ? 'bg-blue-600 text-white' :
+                    msg.type === 'ai' ? 'bg-green-600 text-white' :
+                    msg.type === 'system' ? 'bg-gray-600 text-white' :
+                    msg.type === 'error' ? 'bg-red-600 text-white' :
+                    'bg-gray-500 text-white'
                   }`}>
                     <div className="text-sm">{msg.message}</div>
                     <div className="text-xs opacity-75 mt-1">{msg.timestamp}</div>
@@ -340,21 +340,21 @@ export default function MainPage() {
           onKeyPress={handleKeyPress}
           placeholder="Type your message here..."
           disabled={loading}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-white placeholder-gray-400"
         />
         <button
           onClick={sendMessage}
           disabled={!inputMessage.trim() || loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
         >
           Send
         </button>
       </div>
 
       {/* Instructions */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-800 mb-2">How to Use</h3>
-        <div className="text-sm text-blue-700 space-y-1">
+      <div className="mt-6 bg-blue-900 border border-blue-700 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-200 mb-2">How to Use</h3>
+        <div className="text-sm text-blue-300 space-y-1">
           <div>1. <strong>Text Chat:</strong> Type your message and press Send or Enter</div>
           <div>2. <strong>Voice Chat:</strong> Click "Start Recording" and speak into your microphone</div>
           <div>3. <strong>AI Responses:</strong> AI will respond with text and optionally play audio</div>
