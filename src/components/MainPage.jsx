@@ -4,16 +4,21 @@ export default function MainPage() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const mediaRecorderRef = useRef(null);
-  const websocketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   // Environment variables
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://aimcs-backend.kindmoss-db398a44.eastus2.azurecontainerapps.io';
+  const backendUrl = import.meta.env.VITE_BACKEND_API_URL || 'https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io';
+  
+  // Debug logging
+  console.log('🔍 Backend URL Debug:', {
+    envVar: import.meta.env.VITE_BACKEND_API_URL,
+    finalUrl: backendUrl,
+    hasEnvVar: !!import.meta.env.VITE_BACKEND_API_URL
+  });
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
@@ -24,93 +29,7 @@ export default function MainPage() {
     scrollToBottom();
   }, [messages]);
 
-  // Connect to WebSocket
-  const connectWebSocket = async () => {
-    if (!backendUrl) {
-      setError('Backend URL not configured');
-      return;
-    }
-
-    try {
-      const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/audio';
-      
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
-      const ws = new WebSocket(wsUrl);
-      websocketRef.current = ws;
-
-      ws.onopen = () => {
-        setIsConnected(true);
-        setError('');
-        addMessage('System connected', 'system');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          switch (data.type) {
-            case 'chat_response':
-              addMessage(data.message, 'ai');
-              break;
-            case 'speech_recognized':
-              addMessage(`🎤 "${data.message}"`, 'speech');
-              break;
-            case 'speech_recognizing':
-              // Update the last message if it's a partial recognition
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.type === 'speech') {
-                  lastMessage.message = `🎤 "${data.message}" (recognizing...)`;
-                } else {
-                  newMessages.push({
-                    id: Date.now(),
-                    message: `🎤 "${data.message}" (recognizing...)`,
-                    type: 'speech',
-                    timestamp: new Date().toLocaleTimeString()
-                  });
-                }
-                return newMessages;
-              });
-              break;
-            case 'speech_response':
-              // Play the AI's speech response
-              playAudioResponse(data.audioData);
-              addMessage(`🔊 "${data.message}"`, 'ai_speech');
-              break;
-            case 'audio_processing':
-              addMessage('🎤 Processing audio...', 'system');
-              break;
-            case 'audio_stopped':
-              addMessage('⏹️ Audio processing stopped', 'system');
-              break;
-            case 'connection':
-              addMessage('Ready for voice and text chat', 'system');
-              break;
-            default:
-              console.log('Received message:', data);
-          }
-        } catch (e) {
-          console.log('Raw message:', event.data);
-        }
-      };
-
-      ws.onerror = (error) => {
-        setError(`Connection error: ${error.message}`);
-        setIsConnected(false);
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        addMessage('Connection lost', 'system');
-      };
-
-    } catch (err) {
-      setError(`WebSocket error: ${err.message}`);
-    }
-  };
-
-  // Send chat message
+  // Send text message via HTTP API
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -118,44 +37,60 @@ export default function MainPage() {
     setInputMessage('');
     addMessage(userMessage, 'user');
 
-    if (websocketRef.current?.readyState === WebSocket.OPEN) {
-      // Send via WebSocket
-      const chatMessage = {
-        type: 'chat',
-        message: userMessage,
-        timestamp: new Date().toISOString()
-      };
-      websocketRef.current.send(JSON.stringify(chatMessage));
-    } else {
-      // Fallback to HTTP API
-      try {
-        setLoading(true);
-        const response = await fetch(`${backendUrl}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMessage })
-        });
+    try {
+      setLoading(true);
+      const response = await fetch(`${backendUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          addMessage(data.message, 'ai');
-        } else {
-          addMessage('Sorry, I could not process your message.', 'error');
+      if (response.ok) {
+        const data = await response.json();
+        addMessage(data.message, 'ai');
+        
+        // Optionally convert AI response to speech
+        if (data.message) {
+          await convertToSpeech(data.message);
         }
-      } catch (err) {
-        addMessage('Connection error. Please try again.', 'error');
-      } finally {
-        setLoading(false);
+      } else {
+        addMessage('Sorry, I could not process your message.', 'error');
       }
+    } catch (err) {
+      console.error('Chat error:', err);
+      addMessage('Connection error. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Convert text to speech
+  const convertToSpeech = async (text) => {
+    try {
+      const response = await fetch(`${backendUrl}/api/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: text,
+          voice: 'en-US-JennyNeural',
+          speed: 1.0
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audioData) {
+          playAudioResponse(data.audioData);
+        }
+      }
+    } catch (err) {
+      console.error('TTS error:', err);
+      // Don't show error to user, TTS is optional
     }
   };
 
   // Start recording audio
   const startRecording = async () => {
-    if (!isConnected) {
-      await connectWebSocket();
-    }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -172,27 +107,50 @@ export default function MainPage() {
 
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          // Convert blob to base64 for HTTP transmission
           const reader = new FileReader();
-          reader.onload = () => {
-            const audioData = {
-              type: 'audio',
-              data: reader.result.split(',')[1],
-              timestamp: new Date().toISOString()
-            };
-            websocketRef.current.send(JSON.stringify(audioData));
+          reader.onload = async () => {
+            const audioData = reader.result.split(',')[1]; // Remove data URL prefix
+            
+            try {
+              setLoading(true);
+              const response = await fetch(`${backendUrl}/api/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: audioData })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                addMessage(data.message, 'ai');
+                
+                // Optionally convert AI response to speech
+                if (data.message) {
+                  await convertToSpeech(data.message);
+                }
+              } else {
+                addMessage('Sorry, I could not process your audio.', 'error');
+              }
+            } catch (err) {
+              console.error('Audio processing error:', err);
+              addMessage('Audio processing failed. Please try again.', 'error');
+            } finally {
+              setLoading(false);
+            }
           };
           reader.readAsDataURL(event.data);
         }
       };
 
-      mediaRecorder.start(100);
+      mediaRecorder.start(1000); // Send data every 1 second
       setIsRecording(true);
       addMessage('🎤 Recording...', 'system');
 
     } catch (err) {
       setError(`Microphone access failed: ${err.message}`);
+      addMessage('❌ Microphone access denied', 'error');
     }
   };
 
@@ -203,15 +161,6 @@ export default function MainPage() {
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
       addMessage('⏹️ Recording stopped', 'system');
-      
-      // Send stop_audio command to backend
-      if (websocketRef.current?.readyState === WebSocket.OPEN) {
-        const stopMessage = {
-          type: 'stop_audio',
-          timestamp: new Date().toISOString()
-        };
-        websocketRef.current.send(JSON.stringify(stopMessage));
-      }
     }
   };
 
@@ -258,123 +207,160 @@ export default function MainPage() {
     }
   };
 
-  // Connect on component mount
-  useEffect(() => {
-    connectWebSocket();
-    return () => {
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
-    };
-  }, []);
+  // Clear messages
+  const clearMessages = () => {
+    setMessages([]);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
-      {/* Header */}
-      <div className="text-center py-12">
-        <h1 className="text-5xl font-bold text-gray-800 mb-4">
-          AI Multimodal Customer System
-        </h1>
-        <p className="text-xl text-gray-600">
-          Talk or type to interact with AI
-        </p>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+        🎤 AIMCS Voice & Text Chat
+      </h1>
+
+      {/* Configuration Status */}
+      <div className="bg-gray-50 p-4 rounded-lg mb-6">
+        <h2 className="font-semibold text-gray-800 mb-3">Configuration Status:</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center">
+            <span className={`w-3 h-3 rounded-full mr-2 ${backendUrl ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            <span className="font-medium">Backend URL:</span>
+            <span className="ml-2 text-gray-600">{backendUrl ? '✅ Set' : '❌ Missing'}</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-3 h-3 rounded-full mr-2 bg-green-500"></span>
+            <span className="font-medium">Audio Processing:</span>
+            <span className="ml-2 text-gray-600">✅ HTTP-Based</span>
+          </div>
+        </div>
+        {backendUrl && (
+          <div className="mt-2 text-xs text-gray-600">
+            <strong>Backend URL:</strong> {backendUrl}
+          </div>
+        )}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 max-w-4xl mx-auto w-full px-6 pb-6">
-        {/* Chat Messages */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 h-96 overflow-y-auto">
+      {/* Status Indicators */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">Connection Status</h3>
+          <div className="text-lg font-medium">
+            ✅ HTTP API Ready
+          </div>
+        </div>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">Recording Status</h3>
+          <div className="text-lg font-medium">
+            {isRecording ? '🎙️ Recording' : '⏸️ Stopped'}
+          </div>
+        </div>
+
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">Processing</h3>
+          <div className="text-lg font-medium">
+            {loading ? '🔄 Processing...' : '✅ Ready'}
+          </div>
+        </div>
+      </div>
+
+      {/* Control Buttons */}
+      <div className="flex flex-wrap gap-4 mb-6 justify-center">
+        <button
+          onClick={startRecording}
+          disabled={isRecording || loading}
+          className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        >
+          🎙️ Start Recording
+        </button>
+        
+        <button
+          onClick={stopRecording}
+          disabled={!isRecording}
+          className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        >
+          ⏹️ Stop Recording
+        </button>
+        
+        <button
+          onClick={clearMessages}
+          className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+        >
+          🗑️ Clear Chat
+        </button>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-red-800 mb-2">Error</h3>
+          <div className="text-red-700">{error}</div>
+        </div>
+      )}
+
+      {/* Chat Messages */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-semibold text-gray-800">Chat Messages</h3>
+          <span className="text-sm text-gray-600">{messages.length} messages</span>
+        </div>
+        <div className="bg-white rounded border p-3 h-64 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              Start a conversation by typing a message or using the microphone
+            <div className="text-gray-500 text-center py-8">
+              Start typing or recording to begin chatting with AI!
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    msg.type === 'user' 
-                      ? 'bg-blue-600 text-white' 
-                      : msg.type === 'ai'
-                      ? 'bg-gray-200 text-gray-800'
-                      : msg.type === 'ai_speech'
-                      ? 'bg-purple-200 text-purple-800 border-2 border-purple-300'
-                      : msg.type === 'speech'
-                      ? 'bg-purple-100 text-purple-800'
-                      : msg.type === 'system'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
+                    msg.type === 'user' ? 'bg-blue-500 text-white' :
+                    msg.type === 'ai' ? 'bg-green-500 text-white' :
+                    msg.type === 'system' ? 'bg-gray-500 text-white' :
+                    msg.type === 'error' ? 'bg-red-500 text-white' :
+                    'bg-gray-300 text-gray-800'
                   }`}>
                     <div className="text-sm">{msg.message}</div>
-                    <div className="text-xs opacity-70 mt-1">{msg.timestamp}</div>
+                    <div className="text-xs opacity-75 mt-1">{msg.timestamp}</div>
                   </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} />
             </div>
           )}
-        </div>
-
-        {/* Input Area */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex gap-4">
-            {/* Microphone Button */}
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={loading}
-              className={`p-4 rounded-full text-white font-bold transition-all ${
-                isRecording 
-                  ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title={isRecording ? 'Stop Recording' : 'Start Recording'}
-            >
-              {isRecording ? '⏹️' : '🎤'}
-            </button>
-
-            {/* Text Input */}
-            <div className="flex-1">
-              <textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message here..."
-                className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="3"
-                disabled={loading}
-              />
-            </div>
-
-            {/* Send Button */}
-            <button
-              onClick={sendMessage}
-              disabled={!inputMessage.trim() || loading}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              {loading ? 'Sending...' : 'Send'}
-            </button>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div className="text-red-700 text-sm">{error}</div>
-            </div>
-          )}
-
-          {/* Connection Status */}
-          <div className="mt-4 text-sm text-gray-600">
-            Status: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-          </div>
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="text-center py-6 bg-white border-t">
-        <p className="text-gray-600">
-          Developed by Zimax AI
-        </p>
-      </footer>
+      {/* Text Input */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Type your message here..."
+          disabled={loading}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={!inputMessage.trim() || loading}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        >
+          Send
+        </button>
+      </div>
+
+      {/* Instructions */}
+      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-800 mb-2">How to Use</h3>
+        <div className="text-sm text-blue-700 space-y-1">
+          <div>1. <strong>Text Chat:</strong> Type your message and press Send or Enter</div>
+          <div>2. <strong>Voice Chat:</strong> Click "Start Recording" and speak into your microphone</div>
+          <div>3. <strong>AI Responses:</strong> AI will respond with text and optionally play audio</div>
+          <div>4. <strong>Stop Recording:</strong> Click "Stop Recording" when you're done speaking</div>
+        </div>
+      </div>
     </div>
   );
 }

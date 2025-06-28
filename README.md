@@ -20,14 +20,18 @@ The frontend application for the AI Multimodal Customer System (AIMCS), created 
 
 **✅ LIVE SYSTEM - FULLY OPERATIONAL**
 
-- **Frontend**: https://aimcs-frontend-eastus2.azurewebsites.net
-- **Frontend Custom Domain**: https://aimcs.net (configured, may need DNS propagation)
-- **Backend**: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+- **Frontend**: https://aimcs.azurewebsites.net
+- **Frontend Custom Domain**: https://aimcs.net (configured, SSL pending)
+- **Backend**: https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io
 - **Backend Custom Domain**: https://api.aimcs.net (DNS configured, binding in progress)
 - **AI Services**: Azure AI Foundry with model-router deployment
 - **Region**: All components deployed in `eastus2` for optimal performance
 
-### ✅ **Recent Fixes & Updates**
+### ✅ **Recent Updates & Features**
+
+**🎤 HTTP-Based Audio Processing**: **NEW** - Audio data is now sent via HTTP POST requests to the backend, which forwards it directly to GPT-4o audio model for natural responses to speech, music, sounds, and other audio content.
+
+**🔊 Text-to-Speech (TTS)**: **NEW** - Backend now supports TTS using Azure Speech Services, converting AI text responses to audio that can be played back to users.
 
 **Backend Port Configuration**: **RESOLVED** - Backend target port updated to 3000 to match the application's listening port.
 
@@ -36,8 +40,20 @@ The frontend application for the AI Multimodal Customer System (AIMCS), created 
 - **Backend (api.aimcs.net)**: DNS configured, SSL certificate active, domain binding in progress
 
 **Current Working URLs**:
-- Frontend: https://aimcs-frontend-eastus2.azurewebsites.net (fully operational)
-- Backend: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io (fully operational)
+- Frontend: https://aimcs.azurewebsites.net (fully operational)
+- Backend: https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io (fully operational)
+
+### ✅ **Resolved Issues**
+
+**WebSocket Connection Stability**: 
+- **Issue**: WebSocket connections were disconnecting with code 1006
+- **Status**: **RESOLVED** - Removed WebSocket implementation in favor of HTTP-based audio processing
+- **Solution**: Audio processing now uses standard HTTP POST requests for better reliability
+
+**Speech Services Integration**:
+- **Issue**: Azure Speech Services SDK was causing server conflicts
+- **Status**: **RESOLVED** - Now using Azure Speech Services REST API for TTS
+- **Implementation**: Direct HTTP calls to Azure Speech Services TTS endpoint
 
 ### ✅ **CORS Issue Resolution**
 
@@ -56,7 +72,7 @@ This is a React 18 application built with Vite, featuring:
 - AI model testing and interaction capabilities
 - Professional homepage showcasing the system
 - Azure AI Foundry integration with model-router
-- Real-time voice chat capabilities
+- HTTP-based audio processing capabilities
 - **Beautiful dashboard with persistent navigation for AI Demo and Backend Test after authentication**
 - **Simple unauthenticated AI connection test at `/ai-test`**
 - **Full backend integration with Container Apps**
@@ -75,7 +91,9 @@ This is a React 18 application built with Vite, featuring:
 
 - 🏠 **Professional Homepage** - Showcases the AIMCS system and Zimax Networks
 - 🤖 **AI Model Testing** - Interactive interface for testing Azure AI models via model-router
-- 🎤 **Voice Chat** - Real-time voice interaction capabilities
+- 🎤 **HTTP-Based Audio Processing** - **NEW** Audio processing with GPT-4o audio model via HTTP POST requests
+- 🎵 **Multimodal Audio Support** - Handles speech, music, environmental sounds, and other audio content naturally
+- 🔊 **Text-to-Speech (TTS)** - **NEW** Convert AI text responses to audio using Azure Speech Services
 - 🛠️ **Backend Test** - Diagnostics and API testing with full backend integration
 - 📱 **Responsive Design** - Works seamlessly across all devices
 - 🔧 **Easy Navigation** - Simple navigation between homepage, dashboard, AI demo, and backend test
@@ -90,26 +108,33 @@ This is a React 18 application built with Vite, featuring:
 │                    AIMCS System (eastus2)                   │
 ├─────────────────────────────────────────────────────────────┤
 │  Frontend (React + Vite)                                    │
-│  https://aimcs-frontend-eastus2.azurewebsites.net           │
+│  https://aimcs.azurewebsites.net                            │
 │  Custom Domain: https://aimcs.net                           │
 │  ├── AI Integration (Azure AI Foundry)                      │
 │  ├── Authentication (Microsoft Entra External ID)           │
+│  ├── HTTP Audio Processing                                  │
 │  └── Backend API Client                                     │
 ├─────────────────────────────────────────────────────────────┤
 │  Backend (Node.js Container App)                            │
-│  https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.  │
+│  https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.│
 │  azurecontainerapps.io                                      │
 │  Custom Domain: https://api.aimcs.net (in progress)         │
 │  ├── Health Checks                                          │
 │  ├── Model Management                                       │
-│  ├── Chat API                                               │
-│  └── Speech-to-Text                                         │
+│  ├── Chat API (Text → model-router)                         │
+│  ├── Audio Processing (Audio → gpt-4o-mini-audio-preview-2) │
+│  └── TTS API (Text → Azure Speech Services)                 │
 ├─────────────────────────────────────────────────────────────┤
 │  AI Services (Azure AI Foundry)                             │
 │  https://aimcs-foundry.cognitiveservices.azure.com/         │
-│  ├── Model Router Deployment                                │
-│  ├── GPT-4o Mini                                            │
-│  └── Claude 3 Haiku                                         │
+│  ├── Model Router Deployment (Text Processing)              │
+│  ├── GPT-4o Mini Audio Preview 2 (Audio Processing)        │
+│  └── Dynamic Model Routing                                  │
+├─────────────────────────────────────────────────────────────┤
+│  Speech Services (Azure)                                    │
+│  https://eastus2.tts.speech.microsoft.com/                  │
+│  ├── Text-to-Speech (TTS)                                   │
+│  └── Neural Voice Synthesis                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -122,7 +147,7 @@ The system uses the following environment variables:
 | `VITE_AZURE_OPENAI_ENDPOINT` | Azure AI Foundry endpoint | `https://aimcs-foundry.cognitiveservices.azure.com/` |
 | `VITE_AZURE_OPENAI_API_KEY` | AI Foundry API key | Configured |
 | `VITE_AZURE_OPENAI_DEPLOYMENT` | Model deployment name | `model-router` |
-| `VITE_BACKEND_API_URL` | Backend Container App URL | `https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io` |
+| `VITE_BACKEND_API_URL` | Backend Container App URL | `https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io` |
 
 ## AI Model Routing & Deployment
 
@@ -141,6 +166,79 @@ AIMCS dynamically selects the optimal Azure OpenAI model for each request type:
 |----------|-------------|---------|
 | `AZURE_OPENAI_DEPLOYMENT` | Model deployment for text chat | `model-router` |
 | `AZURE_OPENAI_AUDIO_DEPLOYMENT` | Model deployment for audio/voice | `gpt-4o-mini-audio-preview-2` |
+
+## 🎤 Audio Processing & Voice Features
+
+AIMCS now supports HTTP-based audio processing and text-to-speech functionality, enabling natural voice interactions.
+
+### Audio Processing Flow
+1. **Audio Capture**: Frontend captures audio using MediaRecorder API
+2. **HTTP Transmission**: Audio sent as base64-encoded data via HTTP POST to `/api/audio`
+3. **Direct AI Processing**: Backend forwards audio directly to GPT-4o audio model via Azure OpenAI API
+4. **Natural Response**: AI responds naturally to speech, music, sounds, and other audio content
+5. **Text Response**: AI response sent back to client as text
+6. **Optional TTS**: Text response can be converted to speech using Azure Speech Services
+
+### HTTP API Endpoints
+
+#### Audio Processing
+- **Endpoint**: `POST /api/audio`
+- **Input**: JSON with `audioData` (base64-encoded audio)
+- **Output**: JSON with AI text response and optional TTS audio data
+- **Processing**: Direct forwarding to GPT-4o audio model
+
+#### Text-to-Speech
+- **Endpoint**: `POST /api/tts`
+- **Input**: JSON with `text`, optional `voice`, and `speed`
+- **Output**: JSON with base64-encoded MP3 audio data
+- **Service**: Azure Speech Services TTS
+
+#### Chat API
+- **Endpoint**: `POST /api/chat`
+- **Input**: JSON with `message` (text)
+- **Output**: JSON with AI text response
+- **Processing**: Uses model-router for optimal text processing
+
+### Audio Processing Benefits
+- **HTTP-Based**: Reliable standard HTTP requests instead of WebSocket connections
+- **Direct Processing**: No intermediate speech-to-text conversion required
+- **Natural Responses**: AI responds contextually to any audio content
+- **Multimodal Support**: Handles speech, music, environmental sounds, etc.
+- **TTS Integration**: Optional text-to-speech for complete voice experience
+- **Base64 Encoding**: Secure audio data transmission
+
+### Example Audio Processing
+```javascript
+// Frontend sends audio data via HTTP POST
+const response = await fetch('/api/audio', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    audioData: base64EncodedAudioData
+  })
+});
+
+const result = await response.json();
+console.log('AI Response:', result.message);
+console.log('TTS Audio:', result.ttsAudioData); // Optional
+```
+
+### Example TTS Usage
+```javascript
+// Convert text to speech
+const ttsResponse = await fetch('/api/tts', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: 'Hello, this is a test of the TTS functionality!',
+    voice: 'en-US-JennyNeural', // Optional
+    speed: 1.0 // Optional
+  })
+});
+
+const ttsResult = await ttsResponse.json();
+// ttsResult.audioData contains base64-encoded MP3 audio
+```
 
 ## Monorepo & Environment Variable Handling
 
@@ -337,7 +435,7 @@ Create a `.env` file in the root directory:
 VITE_AZURE_OPENAI_ENDPOINT=https://aimcs-foundry.cognitiveservices.azure.com/
 VITE_AZURE_OPENAI_API_KEY=your-api-key
 VITE_AZURE_OPENAI_DEPLOYMENT=model-router
-VITE_BACKEND_API_URL=https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+VITE_BACKEND_API_URL=https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io
 ```
 
 4. Start the development server:
@@ -474,7 +572,7 @@ az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group 
   VITE_AZURE_OPENAI_ENDPOINT="https://aimcs-foundry.cognitiveservices.azure.com/" \
   VITE_AZURE_OPENAI_API_KEY="<your-key>" \
   VITE_AZURE_OPENAI_DEPLOYMENT="model-router" \
-  VITE_BACKEND_API_URL="https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io"
+  VITE_BACKEND_API_URL="https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io"
 ```
 
 ## Lessons Learned / Troubleshooting
@@ -497,7 +595,7 @@ az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group 
 
 ### ✅ **Backend (aimcs-backend-eastus2)**
 - **Status**: ✅ Operational
-- **URL**: https://aimcs-backend-eastus2.greenwave-bb2ac4ae.eastus2.azurecontainerapps.io
+- **URL**: https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io
 - **Region**: eastus2
 - **Runtime**: Node.js Container App
 - **Features**: Health checks, model management, chat API, speech-to-text
@@ -530,19 +628,89 @@ az webapp config appsettings set --name aimcs-frontend-eastus2 --resource-group 
 
 All major AIMCS features have been tested and are fully operational:
 
-- **Backend Health & Status**: `/health` and `/api/status` endpoints return healthy, AI is configured, and connection count is tracked.
+- **Backend Health & Status**: `/health` and `/api/status` endpoints return healthy, AI is configured, and all services are operational.
 - **AI Chat API**: `/api/chat` endpoint returns real Azure OpenAI responses, including token usage and context.
-- **WebSocket Integration**: `/ws/audio` endpoint supports real-time WebSocket connections for both chat and audio streaming. Node.js and browser clients can connect, send test, chat, and ping messages, and receive AI responses.
-- **Frontend**: React/Vite app is live and accessible at [aimcs-frontend-eastus2.azurewebsites.net](https://aimcs-frontend-eastus2.azurewebsites.net), with connection and audio WebSocket test pages.
-- **Audio WebSocket Test**: The `AudioWebSocketTest` React component allows browser-based microphone access, real-time audio streaming, and message logging to the backend WebSocket endpoint.
+- **HTTP Audio Processing**: `/api/audio` endpoint processes audio data via HTTP POST requests and returns AI responses.
+- **Text-to-Speech API**: `/api/tts` endpoint converts text to speech using Azure Speech Services.
+- **Frontend**: React/Vite app is live and accessible at [aimcs-frontend-eastus2.azurewebsites.net](https://aimcs-frontend-eastus2.azurewebsites.net).
 - **CI/CD**: GitHub Actions workflow builds and deploys both frontend and backend, with environment variables injected at build time.
 - **Region Alignment**: All resources are deployed in `eastus2` to ensure Azure OpenAI connectivity.
 
 ### 🧪 Recent Test Results
 
-- **Backend API**: Health, status, and chat endpoints tested via `curl` and return correct responses.
-- **WebSocket**: Node.js test script (`websocket-test.js`) successfully connects, sends/receives test, chat, and ping messages, and receives AI responses.
+- **Backend API**: Health, status, chat, audio, and TTS endpoints tested via `curl` and return correct responses.
+- **Audio Processing**: HTTP-based audio processing successfully forwards audio to GPT-4o audio model.
+- **TTS Functionality**: Text-to-speech conversion working with Azure Speech Services.
 - **Frontend**: Accessible and functional, with all environment variables correctly injected and backend connectivity verified.
-- **Audio Streaming**: Audio data is sent from browser to backend via WebSocket and acknowledged; further AI audio processing can be enabled as needed.
 
 **System is ready for further development, production use, and demonstration.**
+
+### Text Chat API
+```bash
+curl -X POST https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, how are you?"}'
+```
+
+### Audio Processing API
+```bash
+curl -X POST https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io/api/audio \
+  -H "Content-Type: application/json" \
+  -d '{"audioData": "base64EncodedAudioData"}'
+```
+
+### Text-to-Speech API
+```bash
+curl -X POST https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io/api/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello, this is a test of the TTS functionality!"}'
+```
+
+### Audio Processing Testing
+The audio processing functionality can be tested through HTTP API calls:
+
+1. **Frontend Testing**: Use the voice chat feature in the deployed application
+2. **API Testing**: Send HTTP POST requests to `/api/audio` with base64-encoded audio data
+3. **Audio Format**: Audio should be base64-encoded WAV format
+4. **Processing**: Audio is sent directly to GPT-4o audio model for natural responses
+5. **TTS Testing**: Use `/api/tts` endpoint to convert AI text responses to speech
+
+**Example HTTP Audio Test**:
+```javascript
+// Send audio data via HTTP POST
+const response = await fetch('/api/audio', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    audioData: base64EncodedAudioData
+  })
+});
+
+const result = await response.json();
+console.log('AI Response:', result.message);
+```
+
+## 🔮 Future Enhancements
+
+### Planned Improvements
+1. **Frontend Audio Integration**: Update frontend components to use HTTP-based audio processing
+2. **Real-time Audio Streaming**: Implement chunked audio processing for better real-time experience
+3. **Custom Domains**: Complete configuration of `aimcs.net` and `api.aimcs.net` with SSL
+4. **Authentication**: Re-enable Azure AD authentication for secure access
+5. **Monitoring**: Add Azure Application Insights for comprehensive monitoring
+6. **CI/CD**: Implement automated deployment pipelines with GitHub Actions
+7. **Audio Quality**: Optimize audio processing for better quality and lower latency
+8. **Multilingual Support**: Extend audio processing to support multiple languages
+
+### Technical Roadmap
+- **Q2 2025**: Frontend audio integration and real-time streaming improvements
+- **Q3 2025**: Custom domain completion and authentication re-enablement
+- **Q4 2025**: Advanced monitoring and CI/CD automation
+- **Q1 2026**: Multilingual support and performance optimizations
+
+---
+
+**Last Updated**: June 27, 2025  
+**Version**: 1.0.0  
+**Status**: Operational with HTTP-based audio processing and TTS  
+**Next Milestone**: Frontend audio integration and real-time streaming

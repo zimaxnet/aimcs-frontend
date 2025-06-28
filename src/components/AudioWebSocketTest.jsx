@@ -2,15 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export default function AudioWebSocketTest() {
   const [isRecording, setIsRecording] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState('');
   const [backendUrl, setBackendUrl] = useState('');
-  const [wsUrl, setWsUrl] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const mediaRecorderRef = useRef(null);
-  const websocketRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
@@ -20,69 +18,36 @@ export default function AudioWebSocketTest() {
   const backendApiUrl = import.meta.env.VITE_BACKEND_API_URL;
 
   useEffect(() => {
-    // Set WebSocket URL based on backend URL
+    // Set backend URL
     if (backendApiUrl) {
-      const url = new URL(backendApiUrl);
-      const wsUrl = `${url.protocol === 'https:' ? 'wss:' : 'ws:'}//${url.host}/ws/audio`;
-      setWsUrl(wsUrl);
       setBackendUrl(backendApiUrl);
     }
   }, [backendApiUrl]);
 
-  // Test WebSocket connection
-  const testWebSocketConnection = async () => {
-    if (!wsUrl) {
-      setError('WebSocket URL not configured');
+  // Test HTTP API connection
+  const testHttpConnection = async () => {
+    if (!backendUrl) {
+      setError('Backend URL not configured');
       return;
     }
 
     try {
       setError('');
-      addMessage('🔌 Testing WebSocket connection...', 'info');
+      addMessage('🔌 Testing HTTP API connection...', 'info');
 
-      const ws = new WebSocket(wsUrl);
-      websocketRef.current = ws;
-
-      ws.onopen = () => {
-        setIsConnected(true);
-        addMessage('✅ WebSocket connected successfully!', 'success');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          addMessage(`📨 Received: ${JSON.stringify(data)}`, 'received');
-        } catch (e) {
-          addMessage(`📨 Raw message: ${event.data}`, 'received');
-        }
-      };
-
-      ws.onerror = (error) => {
-        setError(`WebSocket error: ${error.message || 'Connection failed'}`);
-        addMessage('❌ WebSocket connection failed', 'error');
-      };
-
-      ws.onclose = (event) => {
-        setIsConnected(false);
-        addMessage(`🔌 WebSocket closed: ${event.code} - ${event.reason}`, 'info');
-      };
-
-      // Test message after connection
-      setTimeout(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          const testMessage = {
-            type: 'test',
-            message: 'Hello from frontend!',
-            timestamp: new Date().toISOString()
-          };
-          ws.send(JSON.stringify(testMessage));
-          addMessage(`📤 Sent test message: ${JSON.stringify(testMessage)}`, 'sent');
-        }
-      }, 1000);
+      const response = await fetch(`${backendUrl}/health`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        addMessage('✅ HTTP API connected successfully!', 'success');
+        addMessage(`📊 Backend Status: ${JSON.stringify(data)}`, 'received');
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
     } catch (err) {
-      setError(`WebSocket test failed: ${err.message}`);
-      addMessage('❌ WebSocket test failed', 'error');
+      setError(`HTTP API error: ${err.message || 'Connection failed'}`);
+      addMessage('❌ HTTP API connection failed', 'error');
     }
   };
 
@@ -131,10 +96,10 @@ export default function AudioWebSocketTest() {
     }
   };
 
-  // Start recording and streaming
+  // Start recording and processing
   const startRecording = async () => {
-    if (!isConnected) {
-      setError('WebSocket not connected. Please connect first.');
+    if (!backendUrl) {
+      setError('Backend URL not configured. Please test connection first.');
       return;
     }
 
@@ -157,29 +122,83 @@ export default function AudioWebSocketTest() {
 
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
-          // Convert blob to base64 for WebSocket transmission
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          // Convert blob to base64 for HTTP transmission
           const reader = new FileReader();
-          reader.onload = () => {
-            const audioData = {
-              type: 'audio',
-              data: reader.result.split(',')[1], // Remove data URL prefix
-              timestamp: new Date().toISOString()
-            };
-            websocketRef.current.send(JSON.stringify(audioData));
+          reader.onload = async () => {
+            const audioData = reader.result.split(',')[1]; // Remove data URL prefix
+            
+            try {
+              setLoading(true);
+              addMessage('🔄 Processing audio...', 'info');
+              
+              const response = await fetch(`${backendUrl}/api/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audioData: audioData })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                addMessage(`📨 AI Response: ${data.message}`, 'received');
+                
+                // Optionally test TTS
+                if (data.message) {
+                  await testTTS(data.message);
+                }
+              } else {
+                const errorText = await response.text();
+                addMessage(`❌ Audio processing failed: ${errorText}`, 'error');
+              }
+            } catch (err) {
+              addMessage(`❌ Audio processing error: ${err.message}`, 'error');
+            } finally {
+              setLoading(false);
+            }
           };
           reader.readAsDataURL(event.data);
         }
       };
 
-      mediaRecorder.start(100); // Send data every 100ms
+      mediaRecorder.start(2000); // Send data every 2 seconds
       setIsRecording(true);
       addMessage('✅ Recording started!', 'success');
 
     } catch (err) {
       setError(`Recording failed: ${err.message}`);
       addMessage('❌ Recording failed', 'error');
+    }
+  };
+
+  // Test TTS functionality
+  const testTTS = async (text) => {
+    try {
+      addMessage('🔊 Testing TTS...', 'info');
+      
+      const response = await fetch(`${backendUrl}/api/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: text,
+          voice: 'en-US-JennyNeural',
+          speed: 1.0
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        addMessage('✅ TTS audio generated successfully!', 'success');
+        
+        // Play the audio
+        if (data.audioData) {
+          playAudioResponse(data.audioData);
+        }
+      } else {
+        addMessage('❌ TTS failed', 'error');
+      }
+    } catch (err) {
+      addMessage(`❌ TTS error: ${err.message}`, 'error');
     }
   };
 
@@ -193,13 +212,30 @@ export default function AudioWebSocketTest() {
     }
   };
 
-  // Disconnect WebSocket
-  const disconnectWebSocket = () => {
-    if (websocketRef.current) {
-      websocketRef.current.close();
-      websocketRef.current = null;
-      setIsConnected(false);
-      addMessage('🔌 WebSocket disconnected', 'info');
+  // Play audio response from AI
+  const playAudioResponse = (audioData) => {
+    try {
+      // Convert base64 to blob
+      const audioBlob = new Blob([Uint8Array.from(atob(audioData), c => c.charCodeAt(0))], {
+        type: 'audio/mp3'
+      });
+      
+      // Create audio URL and play
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl); // Clean up
+      };
+      
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        addMessage('❌ Error playing audio response', 'error');
+      });
+      
+    } catch (error) {
+      console.error('Error processing audio response:', error);
+      addMessage('❌ Error processing audio response', 'error');
     }
   };
 
@@ -235,16 +271,13 @@ export default function AudioWebSocketTest() {
   useEffect(() => {
     return () => {
       cleanupAudio();
-      if (websocketRef.current) {
-        websocketRef.current.close();
-      }
     };
   }, []);
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-        🎤 Audio WebSocket Test
+        🎤 Audio HTTP API Test
       </h1>
 
       {/* Configuration Status */}
@@ -257,24 +290,24 @@ export default function AudioWebSocketTest() {
             <span className="ml-2 text-gray-600">{backendUrl ? '✅ Set' : '❌ Missing'}</span>
           </div>
           <div className="flex items-center">
-            <span className={`w-3 h-3 rounded-full mr-2 ${wsUrl ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="font-medium">WebSocket URL:</span>
-            <span className="ml-2 text-gray-600">{wsUrl ? '✅ Set' : '❌ Missing'}</span>
+            <span className="w-3 h-3 rounded-full mr-2 bg-green-500"></span>
+            <span className="font-medium">Audio Processing:</span>
+            <span className="ml-2 text-gray-600">✅ HTTP-Based</span>
           </div>
         </div>
-        {wsUrl && (
+        {backendUrl && (
           <div className="mt-2 text-xs text-gray-600">
-            <strong>WebSocket URL:</strong> {wsUrl}
+            <strong>Backend URL:</strong> {backendUrl}
           </div>
         )}
       </div>
 
-      {/* Connection Status */}
+      {/* Status Indicators */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className={`p-4 rounded-lg border ${isConnected ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-          <h3 className="font-semibold mb-2">WebSocket Status</h3>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">API Status</h3>
           <div className="text-lg font-medium">
-            {isConnected ? '✅ Connected' : '❌ Disconnected'}
+            ✅ HTTP API Ready
           </div>
         </div>
         
@@ -302,11 +335,11 @@ export default function AudioWebSocketTest() {
       {/* Control Buttons */}
       <div className="flex flex-wrap gap-4 mb-6 justify-center">
         <button
-          onClick={testWebSocketConnection}
-          disabled={!wsUrl || isConnected}
+          onClick={testHttpConnection}
+          disabled={!backendUrl || loading}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
-          🔌 Test WebSocket
+          🔌 Test HTTP API
         </button>
         
         <button
@@ -318,7 +351,7 @@ export default function AudioWebSocketTest() {
         
         <button
           onClick={startRecording}
-          disabled={!isConnected || isRecording}
+          disabled={!backendUrl || isRecording || loading}
           className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           🎙️ Start Recording
@@ -330,14 +363,6 @@ export default function AudioWebSocketTest() {
           className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           ⏹️ Stop Recording
-        </button>
-        
-        <button
-          onClick={disconnectWebSocket}
-          disabled={!isConnected}
-          className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-        >
-          🔌 Disconnect
         </button>
         
         <button
@@ -388,10 +413,10 @@ export default function AudioWebSocketTest() {
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold text-blue-800 mb-2">Testing Instructions</h3>
         <div className="text-sm text-blue-700 space-y-1">
-          <div>1. <strong>Test WebSocket:</strong> Verify connection to backend WebSocket endpoint</div>
+          <div>1. <strong>Test HTTP API:</strong> Verify connection to backend HTTP endpoints</div>
           <div>2. <strong>Test Microphone:</strong> Check microphone access and audio levels</div>
-          <div>3. <strong>Start Recording:</strong> Begin streaming audio data via WebSocket</div>
-          <div>4. <strong>Monitor Log:</strong> Watch for incoming messages from the backend</div>
+          <div>3. <strong>Start Recording:</strong> Begin sending audio data via HTTP POST</div>
+          <div>4. <strong>Monitor Log:</strong> Watch for AI responses and TTS audio</div>
           <div>5. <strong>Stop Recording:</strong> End the audio stream</div>
         </div>
       </div>

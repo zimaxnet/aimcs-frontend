@@ -2,9 +2,9 @@ export const msalConfig = {
   auth: {
     clientId: "a9ad55e2-d46f-4bad-bce6-c95f1bc43018",
     authority: "https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com",
-    redirectUri: "https://aimcs.net/",
+    redirectUri: "https://aimcs.azurewebsites.net/",
     knownAuthorities: ["zimaxai.ciamlogin.com"],
-    postLogoutRedirectUri: "https://aimcs.net/"
+    postLogoutRedirectUri: "https://aimcs.azurewebsites.net/"
   },
   cache: {
     cacheLocation: "sessionStorage",

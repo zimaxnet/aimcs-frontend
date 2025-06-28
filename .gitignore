@@ -149,3 +149,7 @@ dist
 # Azure configuration files
 .azure/
 *.publishsettings
+
+# Ignore build output and deployment zips
+/dist/
+*.zip
