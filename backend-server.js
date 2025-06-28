@@ -6,7 +6,7 @@ const app = express();
 // Environment variables
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
-const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'model-router';
+const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini-tts';
 const AZURE_OPENAI_AUDIO_DEPLOYMENT = process.env.AZURE_OPENAI_AUDIO_DEPLOYMENT || 'gpt-4o-mini-audio-preview';
 const AZURE_SPEECH_KEY = process.env.AZURE_SPEECH_KEY;
 const AZURE_SPEECH_REGION = process.env.AZURE_SPEECH_REGION || 'eastus2';
@@ -97,6 +97,7 @@ app.post('/api/chat', async (req, res) => {
         ],
         max_tokens: 500,
         temperature: 0.7,
+        response_format: { type: "text" }
       }),
     });
 
@@ -111,41 +112,16 @@ app.post('/api/chat', async (req, res) => {
 
     console.log(`✅ Azure OpenAI response: "${aiResponse}"`);
 
-    // Generate TTS audio for the AI response
-    let ttsAudioData = null;
-    try {
-      console.log(`🎤 Generating TTS for: "${aiResponse}"`);
-      
-      // Use Azure Speech Services TTS
-      const speechUrl = `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
-      
-      const speechResponse = await fetch(speechUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-          'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
-          'User-Agent': 'AIMCS-Backend'
-        },
-        body: `<speak version='1.0' xml:lang='en-US'>
-          <voice xml:lang='en-US' xml:gender='Female' name='en-US-JennyNeural'>
-            <prosody rate='1.0'>
-              ${aiResponse}
-            </prosody>
-          </voice>
-        </speak>`
-      });
-
-      if (speechResponse.ok) {
-        const audioBuffer = await speechResponse.arrayBuffer();
-        ttsAudioData = Buffer.from(audioBuffer).toString('base64');
-        console.log(`✅ TTS audio generated, size: ${ttsAudioData.length} bytes`);
-      } else {
-        console.log(`⚠️ TTS generation failed: ${speechResponse.status}`);
-      }
-    } catch (ttsError) {
-      console.error(`❌ TTS error:`, ttsError);
-      // Don't fail the entire response if TTS fails
+    // Check if this is a TTS model response (should include audio data)
+    let audioData = null;
+    let audioFormat = null;
+    
+    if (openaiData.choices?.[0]?.message?.content?.[0]?.type === 'audio') {
+      // Extract audio data from TTS model response
+      const audioContent = openaiData.choices[0].message.content[0];
+      audioData = audioContent.audio_url?.url?.split(',')[1]; // Remove data:audio/mp3;base64, prefix
+      audioFormat = audioContent.audio_url?.url?.split(';')[0]?.split(':')[1] || 'audio/mp3';
+      console.log(`✅ TTS audio received from model, format: ${audioFormat}`);
     }
 
     const response = {
@@ -158,10 +134,10 @@ app.post('/api/chat', async (req, res) => {
       usage: openaiData.usage
     };
 
-    // Add TTS audio data if available
-    if (ttsAudioData) {
-      response.audioData = ttsAudioData;
-      response.audioFormat = 'mp3';
+    // Add audio data if available from TTS model
+    if (audioData) {
+      response.audioData = audioData;
+      response.audioFormat = audioFormat;
     }
 
     res.json(response);
@@ -263,43 +239,6 @@ app.post('/api/audio', async (req, res) => {
 
     console.log(`✅ AI response to audio: "${aiResponse}"`);
 
-    // Generate TTS audio for the AI response
-    let ttsAudioData = null;
-    try {
-      console.log(`🎤 Generating TTS audio for: "${aiResponse}"`);
-      
-      // Use Azure Speech Services TTS
-      const speechUrl = `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
-      
-      const speechResponse = await fetch(speechUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/ssml+xml',
-          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-          'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
-          'User-Agent': 'AIMCS-Backend'
-        },
-        body: `<speak version='1.0' xml:lang='en-US'>
-          <voice xml:lang='en-US' xml:gender='Female' name='en-US-JennyNeural'>
-            <prosody rate='1.0'>
-              ${aiResponse}
-            </prosody>
-          </voice>
-        </speak>`
-      });
-
-      if (speechResponse.ok) {
-        const audioBuffer = await speechResponse.arrayBuffer();
-        ttsAudioData = Buffer.from(audioBuffer).toString('base64');
-        console.log(`✅ TTS audio generated, size: ${ttsAudioData.length} bytes`);
-      } else {
-        console.log(`⚠️ TTS generation failed: ${speechResponse.status}`);
-      }
-    } catch (ttsError) {
-      console.error(`❌ TTS error:`, ttsError);
-      // Don't fail the entire response if TTS fails
-    }
-
     const response = {
       id: Date.now().toString(),
       message: aiResponse,
@@ -307,12 +246,6 @@ app.post('/api/audio', async (req, res) => {
       originalMessage: 'Audio input',
       timestamp: new Date().toISOString()
     };
-
-    // Add TTS audio data if available
-    if (ttsAudioData) {
-      response.audioData = ttsAudioData;
-      response.audioFormat = 'mp3';
-    }
 
     res.json(response);
 
@@ -328,82 +261,9 @@ app.post('/api/audio', async (req, res) => {
   }
 });
 
-// Text-to-Speech endpoint using Azure Speech Services
-app.post('/api/tts', async (req, res) => {
-  try {
-    const { text, voice = 'en-US-JennyNeural', speed = 1.0 } = req.body;
-    
-    if (!text) {
-      return res.status(400).json({ error: 'Text is required' });
-    }
-
-    // Check if Azure Speech Services is configured
-    if (!AZURE_SPEECH_KEY) {
-      console.log('⚠️ Azure Speech Services not configured for TTS');
-      return res.status(500).json({ error: 'TTS not configured' });
-    }
-
-    console.log(`🎤 Generating TTS for: "${text}"`);
-
-    // Use Azure Speech Services TTS
-    const speechUrl = `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
-    
-    const speechResponse = await fetch(speechUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/ssml+xml',
-        'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-        'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
-        'User-Agent': 'AIMCS-Backend'
-      },
-      body: `<speak version='1.0' xml:lang='en-US'>
-        <voice xml:lang='en-US' xml:gender='Female' name='${voice}'>
-          <prosody rate='${speed}'>
-            ${text}
-          </prosody>
-        </voice>
-      </speak>`
-    });
-
-    if (!speechResponse.ok) {
-      const errorText = await speechResponse.text();
-      console.error(`❌ Speech Services TTS error: ${speechResponse.status} - ${errorText}`);
-      throw new Error(`Speech Services TTS error: ${speechResponse.status}`);
-    }
-
-    const audioBuffer = await speechResponse.arrayBuffer();
-    const audioData = Buffer.from(audioBuffer).toString('base64');
-
-    console.log(`✅ TTS audio generated, size: ${audioData.length} bytes`);
-
-    res.json({
-      id: Date.now().toString(),
-      text: text,
-      audioData: audioData,
-      audioFormat: 'mp3',
-      voice: voice,
-      speed: speed,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error(`❌ Error generating TTS:`, error);
-    res.status(500).json({
-      id: Date.now().toString(),
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
 // Error handling
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
 
