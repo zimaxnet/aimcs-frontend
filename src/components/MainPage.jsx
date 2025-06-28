@@ -1,116 +1,35 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function MainPage() {
+const MainPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [connectionMode, setConnectionMode] = useState('http'); // 'http' or 'websocket'
-  const [error, setError] = useState('');
-
-  const mediaRecorderRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const websocketRef = useRef(null);
-  const streamRef = useRef(null);
-
-  // Environment variables
-  const backendUrl = import.meta.env.VITE_BACKEND_API_URL || 'https://aimcs-backend-eastus2.thankfulbay-fde9fe29.eastus2.azurecontainerapps.io';
   
-  // Debug logging
-  console.log('🔍 Backend URL Debug:', {
-    envVar: import.meta.env.VITE_BACKEND_API_URL,
-    finalUrl: backendUrl,
-    hasEnvVar: !!import.meta.env.VITE_BACKEND_API_URL
-  });
+  const messagesEndRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  // Auto-scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const BACKEND_URL = 'https://api.aimcs.net';
 
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // WebSocket connection management
-  useEffect(() => {
-    if (connectionMode === 'websocket') {
-      connectWebSocket();
-    } else {
-      disconnectWebSocket();
-    }
-
-    return () => {
-      disconnectWebSocket();
+  const addMessage = (sender, message, type = 'user', audioData = null, audioFormat = null) => {
+    const newMessage = {
+      id: Date.now(),
+      sender,
+      message,
+      type,
+      timestamp: new Date().toISOString(),
+      audioData,
+      audioFormat
     };
-  }, [connectionMode]);
-
-  const connectWebSocket = () => {
-    try {
-      const wsUrl = backendUrl.replace('https://', 'wss://');
-      websocketRef.current = new WebSocket(wsUrl);
-      
-      websocketRef.current.onopen = () => {
-        console.log('🔌 WebSocket connected');
-        setIsWebSocketConnected(true);
-        addMessage('System', 'Connected to real-time streaming mode', 'system');
-      };
-      
-      websocketRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleWebSocketMessage(data);
-      };
-      
-      websocketRef.current.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
-        setIsWebSocketConnected(false);
-        addMessage('System', 'Disconnected from streaming mode', 'system');
-      };
-      
-      websocketRef.current.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        setIsWebSocketConnected(false);
-        addMessage('System', 'WebSocket connection error', 'error');
-      };
-    } catch (error) {
-      console.error('❌ Failed to connect WebSocket:', error);
-      addMessage('System', 'Failed to connect to streaming mode', 'error');
-    }
+    setMessages(prev => [...prev, newMessage]);
   };
 
-  const disconnectWebSocket = () => {
-    if (websocketRef.current) {
-      websocketRef.current.close();
-      websocketRef.current = null;
-    }
-    setIsWebSocketConnected(false);
-    setIsStreaming(false);
-  };
-
-  const handleWebSocketMessage = (data) => {
-    switch (data.type) {
-      case 'connection':
-        console.log('✅ WebSocket connection established');
-        break;
-      case 'audio_response':
-      case 'text_response':
-        addMessage('AI', data.message, 'ai', data.audioData, data.audioFormat);
-        break;
-      case 'error':
-        addMessage('System', data.message, 'error');
-        break;
-      case 'pong':
-        console.log('🏓 WebSocket ping-pong');
-        break;
-      default:
-        console.log('📨 Unknown WebSocket message type:', data.type);
-    }
-  };
-
-  // Send text message via HTTP API
   const sendTextMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -118,107 +37,31 @@ export default function MainPage() {
     setInputMessage('');
     addMessage('You', userMessage, 'user');
 
-    if (connectionMode === 'websocket' && isWebSocketConnected) {
-      // Send via WebSocket
-      websocketRef.current.send(JSON.stringify({
-        type: 'text_message',
-        text: userMessage
-      }));
-    } else {
-      // Send via HTTP
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${backendUrl}/api/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: userMessage }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          addMessage('AI', data.message, 'ai', data.audioData, data.audioFormat);
-        } else {
-          addMessage('System', 'Failed to send message', 'error');
-        }
-      } catch (error) {
-        console.error('❌ Error sending message:', error);
-        addMessage('System', 'Error sending message', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  const startStreaming = async () => {
-    if (connectionMode !== 'websocket' || !isWebSocketConnected) {
-      addMessage('System', 'Please enable WebSocket mode for streaming', 'error');
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setIsStreaming(true);
-      addMessage('System', 'Started real-time audio streaming - just talk!', 'system');
-
-      // Create MediaRecorder for streaming
-      const mediaRecorder = new MediaRecorder(streamRef.current, {
-        mimeType: 'audio/webm;codecs=opus'
+      const response = await fetch(`${BACKEND_URL}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
       });
 
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-          
-          // Convert to base64 and send via WebSocket
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64Audio = reader.result.split(',')[1];
-            if (websocketRef.current && isWebSocketConnected) {
-              websocketRef.current.send(JSON.stringify({
-                type: 'audio_chunk',
-                audioData: base64Audio,
-                audioFormat: 'webm;codecs=opus',
-                isFinal: false
-              }));
-            }
-          };
-          reader.readAsDataURL(event.data);
-        }
-      };
-
-      mediaRecorder.start(1000); // Send chunks every second
-      console.log('🎤 Started audio streaming');
-
+      if (response.ok) {
+        const data = await response.json();
+        addMessage('AI', data.message, 'ai', data.audioData, data.audioFormat);
+      } else {
+        addMessage('System', 'Failed to send message', 'error');
+      }
     } catch (error) {
-      console.error('❌ Error starting streaming:', error);
-      addMessage('System', 'Failed to start audio streaming', 'error');
-    }
-  };
-
-  const stopStreaming = () => {
-    if (mediaRecorderRef.current && isStreaming) {
-      mediaRecorderRef.current.stop();
-      setIsStreaming(false);
-      addMessage('System', 'Stopped audio streaming', 'system');
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+      console.error('❌ Error sending message:', error);
+      addMessage('System', 'Error sending message', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const startRecording = async () => {
-    if (connectionMode === 'websocket') {
-      startStreaming();
-      return;
-    }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream, {
@@ -265,7 +108,7 @@ export default function MainPage() {
         const base64Audio = reader.result.split(',')[1];
         const audioFormat = audioBlob.type;
         
-        const response = await fetch(`${backendUrl}/api/audio`, {
+        const response = await fetch(`${BACKEND_URL}/api/audio`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -309,31 +152,11 @@ export default function MainPage() {
     };
   };
 
-  // Add message to chat
-  const addMessage = (sender, message, type = 'user', audioData = null, audioFormat = null) => {
-    const newMessage = {
-      id: Date.now(),
-      sender,
-      message,
-      type,
-      timestamp: new Date().toISOString(),
-      audioData,
-      audioFormat
-    };
-    setMessages(prev => [...prev, newMessage]);
-  };
-
-  // Handle Enter key
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendTextMessage();
     }
-  };
-
-  // Clear messages
-  const clearMessages = () => {
-    setMessages([]);
   };
 
   return (
@@ -343,45 +166,6 @@ export default function MainPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-blue-400 mb-2">AIMCS</h1>
           <p className="text-gray-300">AI Multimodal Customer System</p>
-          
-          {/* Connection Mode Toggle */}
-          <div className="mt-4 flex justify-center items-center space-x-4">
-            <span className="text-sm text-gray-400">Connection Mode:</span>
-            <div className="flex bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setConnectionMode('http')}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  connectionMode === 'http' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                HTTP
-              </button>
-              <button
-                onClick={() => setConnectionMode('websocket')}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  connectionMode === 'websocket' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                WebSocket
-              </button>
-            </div>
-            
-            {/* Connection Status */}
-            {connectionMode === 'websocket' && (
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  isWebSocketConnected ? 'bg-green-500' : 'bg-red-500'
-                }`}></div>
-                <span className="text-xs text-gray-400">
-                  {isWebSocketConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Messages */}
@@ -389,9 +173,7 @@ export default function MainPage() {
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 mt-20">
               <p>Start a conversation with text or voice!</p>
-              {connectionMode === 'websocket' && (
-                <p className="text-sm mt-2">WebSocket mode enables real-time streaming</p>
-              )}
+              <p className="text-sm mt-2">Click "Start Recording" to use voice chat</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -447,45 +229,30 @@ export default function MainPage() {
 
           {/* Audio Controls */}
           <div className="flex justify-center space-x-4">
-            {connectionMode === 'websocket' ? (
-              // WebSocket Streaming Controls
-              <button
-                onClick={isStreaming ? stopStreaming : startStreaming}
-                disabled={!isWebSocketConnected}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                  isStreaming
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                } ${!isWebSocketConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isStreaming ? '🛑 Stop Streaming' : '🎤 Start Streaming'}
-              </button>
-            ) : (
-              // HTTP Recording Controls
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isLoading}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                  isRecording
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isRecording ? '🛑 Stop Recording' : '🎤 Start Recording'}
-              </button>
-            )}
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isLoading}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                isRecording
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isRecording ? '🛑 Stop Recording' : '🎤 Start Recording'}
+            </button>
           </div>
 
           {/* Status */}
-          {(isLoading || isRecording || isStreaming) && (
+          {(isLoading || isRecording) && (
             <div className="text-center text-gray-400">
               {isLoading && '🔄 Processing...'}
               {isRecording && '🎤 Recording...'}
-              {isStreaming && '🔴 Live Streaming...'}
             </div>
           )}
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default MainPage;
