@@ -192,8 +192,8 @@ const MainPage = () => {
   }
 
   return (
-    <div className="bg-gray-900 text-white">
-      <div className="max-w-4xl mx-auto p-4 pt-16">
+    <div className="bg-gray-900 text-white h-screen overflow-hidden">
+      <div className="max-w-4xl mx-auto p-2 pt-4 h-full flex flex-col">
         {/* Top Bar: Language Toggle + User Email */}
         <div className="flex justify-between items-center mb-2">
           {/* Language Toggle */}
@@ -218,14 +218,14 @@ const MainPage = () => {
           )}
         </div>
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-blue-400 mb-2">{translations[language].title}</h1>
-          <p className="text-gray-300">{translations[language].subtitle}</p>
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-bold text-blue-400 mb-1">{translations[language].title}</h1>
+          <p className="text-gray-300 text-sm">{translations[language].subtitle}</p>
         </div>
         {/* Messages */}
-        <div className="bg-gray-800 rounded-lg p-4 mb-4 h-64 overflow-y-auto">
+        <div className="bg-gray-800 rounded-lg p-3 mb-3 flex-1 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 mt-16">
+            <div className="text-center text-gray-400 mt-8">
               <p>{translations[language].startConversation}</p>
               <p className="text-sm mt-2">{translations[language].typeMessage}</p>
             </div>
@@ -259,29 +259,28 @@ const MainPage = () => {
           <div ref={messagesEndRef} />
         </div>
         {/* Controls */}
-        <div className="flex flex-col space-y-4">
-          {/* Text Input */}
+        <div className="flex-shrink-0">
           <div className="flex space-x-2">
             <textarea
               value={inputMessage}
               onChange={e => setInputMessage(e.target.value)}
               onKeyDown={handleKeyPress}
-              className="flex-1 rounded-lg p-2 bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              rows={2}
+              className="flex-1 rounded-lg p-2 bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+              rows={1}
               placeholder={translations[language].placeholder}
               disabled={isLoading}
             />
             <button
               onClick={sendTextMessage}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-semibold disabled:opacity-60 text-sm"
               disabled={isLoading || !inputMessage.trim()}
             >
               {isLoading ? translations[language].processing : translations[language].send}
             </button>
           </div>
-        </div>
-        <div className="text-center text-gray-400 text-xs mt-8 pb-4">
-          {translations[language].poweredBy} Zimax Networks AI
+          <div className="text-center text-gray-400 text-xs mt-2">
+            {translations[language].poweredBy} Zimax Networks AI
+          </div>
         </div>
       </div>
     </div>
