@@ -117,6 +117,7 @@ az containerapp create \
     --env-vars \
         NODE_ENV=production \
         PORT=3000 \
+        AZURE_OPENAI_TTS_DEPLOYMENT=gpt-4o-mini-tts \
     --output none
 
 echo "✅ Container App deployed"

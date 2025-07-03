@@ -3,9 +3,10 @@ import { LogLevel } from '@azure/msal-browser';
 export const msalConfig = {
   auth: {
     clientId: 'a9ad55e2-d46f-4bad-bce6-c95f1bc43018',
-    authority: 'https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com',
+    authority: 'https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com/v2.0',
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
+    knownAuthorities: ['zimaxai.ciamlogin.com'],
   },
   cache: {
     cacheLocation: 'sessionStorage',

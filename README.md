@@ -78,3 +78,18 @@ A modern web application that provides AI-powered text chat with automatic text-
 
 - **o4-mini**: Uses `max_completion_tokens: 1000`, API version `2025-01-01-preview`
 - **gpt-4o-mini-tts**: Uses `voice: "alloy"`, `response_format: "mp3"`, API version `2025-03-01-preview`
+
+## 🏢 Enterprise Development Roadmap
+
+**Phase 1: Foundation (Week 1)**
+
+- [ ] Multi-tenant database design (Cosmos DB)
+- [ ] Azure AD B2C authentication planning
+- [ ] Staging/production environment separation
+- [ ] API expansion plan for enterprise features
+- [ ] Security/RBAC/audit logging assessment
+- [ ] Azure resource planning (Cosmos DB, AD B2C, etc.)
+- [ ] Technical specification documentation
+- [ ] `enterprise-foundation` development branch
+
+**Principle:** Build on the current MVP foundation. All new enterprise features are additive and backward compatible.

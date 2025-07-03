@@ -44,12 +44,15 @@ const MainPage = () => {
   useEffect(() => {
     const initializeMsal = async () => {
       try {
+        console.log('Initializing MSAL with config:', msalConfig);
         await msalInstance.initialize();
         
         // Handle redirect response
         const response = await msalInstance.handleRedirectPromise();
+        console.log('Redirect response:', response);
         if (response) {
           const account = response.account;
+          console.log('Account from redirect:', account);
           if (account && account.username) {
             setUserEmail(account.username);
             setIsAuthenticated(true);
@@ -60,6 +63,7 @@ const MainPage = () => {
 
         // Check for existing accounts
         const accounts = msalInstance.getAllAccounts();
+        console.log('Existing accounts:', accounts);
         if (accounts.length > 0) {
           const account = accounts[0];
           setUserEmail(account.username);
@@ -67,6 +71,7 @@ const MainPage = () => {
           setAuthLoading(false);
         } else {
           // No authenticated user, show login button instead of auto-redirect
+          console.log('No authenticated user found');
           setAuthLoading(false);
         }
       } catch (error) {
@@ -147,8 +152,13 @@ const MainPage = () => {
     }
   };
 
-  const handleLogin = () => {
-    msalInstance.loginRedirect(loginRequest);
+  const handleLogin = async () => {
+    try {
+      console.log('Starting login with config:', msalConfig);
+      await msalInstance.loginRedirect(loginRequest);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
   };
 
   if (authLoading) {

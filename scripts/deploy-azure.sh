@@ -29,11 +29,11 @@ if ! az account show &> /dev/null; then
 fi
 
 # Configuration variables (you can override these)
-RESOURCE_GROUP=${RESOURCE_GROUP:-"aimcs-rg"}
-WEB_APP_NAME=${WEB_APP_NAME:-"aimcs-frontend"}
-LOCATION=${LOCATION:-"westus"}
+RESOURCE_GROUP=${RESOURCE_GROUP:-"aimcs-rg-eastus2"}
+WEB_APP_NAME=${WEB_APP_NAME:-"aimcs"}
+LOCATION=${LOCATION:-"eastus2"}
 NODE_VERSION=${NODE_VERSION:-"20-lts"}
-OPENAI_RESOURCE_NAME=${OPENAI_RESOURCE_NAME:-"aimcs-resource"}
+OPENAI_RESOURCE_NAME=${OPENAI_RESOURCE_NAME:-"aimcs-foundry"}
 
 echo "📋 Deployment Configuration:"
 echo "   Resource Group: $RESOURCE_GROUP"
@@ -66,26 +66,42 @@ else
 fi
 
 # Create resource group if it doesn't exist
-echo "🏗️  Creating resource group..."
-az group create --name $RESOURCE_GROUP --location $LOCATION --output none
+echo "🏗️  Checking resource group..."
+if ! az group show --name $RESOURCE_GROUP &> /dev/null; then
+    echo "🏗️  Creating resource group..."
+    az group create --name $RESOURCE_GROUP --location $LOCATION --output none
+else
+    echo "✅ Resource group already exists"
+fi
 
-# Create App Service plan if it doesn't exist
-echo "📋 Creating App Service plan..."
-az appservice plan create \
-    --name "${WEB_APP_NAME}-plan" \
-    --resource-group $RESOURCE_GROUP \
-    --sku B1 \
-    --is-linux \
-    --output none
+# Check if App Service plan exists
+echo "📋 Checking App Service plan..."
+PLAN_NAME="${WEB_APP_NAME}-plan"
+if ! az appservice plan show --name $PLAN_NAME --resource-group $RESOURCE_GROUP &> /dev/null; then
+    echo "📋 Creating App Service plan..."
+    az appservice plan create \
+        --name $PLAN_NAME \
+        --resource-group $RESOURCE_GROUP \
+        --sku B1 \
+        --is-linux \
+        --output none
+else
+    echo "✅ App Service plan already exists"
+fi
 
-# Create Web App if it doesn't exist
-echo "🌐 Creating Web App..."
-az webapp create \
-    --name $WEB_APP_NAME \
-    --resource-group $RESOURCE_GROUP \
-    --plan "${WEB_APP_NAME}-plan" \
-    --runtime "NODE|${NODE_VERSION}" \
-    --output none
+# Check if Web App exists
+echo "🌐 Checking Web App..."
+if ! az webapp show --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP &> /dev/null; then
+    echo "🌐 Creating Web App..."
+    az webapp create \
+        --name $WEB_APP_NAME \
+        --resource-group $RESOURCE_GROUP \
+        --plan $PLAN_NAME \
+        --runtime "NODE|${NODE_VERSION}" \
+        --output none
+else
+    echo "✅ Web App already exists"
+fi
 
 # Configure the Web App
 echo "⚙️  Configuring Web App..."
