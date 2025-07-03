@@ -223,9 +223,9 @@ const MainPage = () => {
           <p className="text-gray-300">{translations[language].subtitle}</p>
         </div>
         {/* Messages */}
-        <div className="bg-gray-800 rounded-lg p-4 mb-4 h-96 overflow-y-auto">
+        <div className="bg-gray-800 rounded-lg p-4 mb-4 h-64 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 mt-20">
+            <div className="text-center text-gray-400 mt-16">
               <p>{translations[language].startConversation}</p>
               <p className="text-sm mt-2">{translations[language].typeMessage}</p>
             </div>
