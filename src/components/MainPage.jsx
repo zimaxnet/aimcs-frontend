@@ -36,6 +36,7 @@ const MainPage = () => {
   const [language, setLanguage] = useState('en');
   const [userEmail, setUserEmail] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const messagesEndRef = useRef(null);
   const BACKEND_URL = 'https://api.aimcs.net';
 
@@ -52,6 +53,7 @@ const MainPage = () => {
           if (account && account.username) {
             setUserEmail(account.username);
             setIsAuthenticated(true);
+            setAuthLoading(false);
             return;
           }
         }
@@ -62,12 +64,14 @@ const MainPage = () => {
           const account = accounts[0];
           setUserEmail(account.username);
           setIsAuthenticated(true);
+          setAuthLoading(false);
         } else {
-          // No authenticated user, trigger login
-          msalInstance.loginRedirect(loginRequest);
+          // No authenticated user, show login button instead of auto-redirect
+          setAuthLoading(false);
         }
       } catch (error) {
         console.error('MSAL initialization error:', error);
+        setAuthLoading(false);
       }
     };
 
@@ -143,9 +147,36 @@ const MainPage = () => {
     }
   };
 
-  if (!userEmail) {
-    // While redirecting or waiting for login, show nothing or a loading spinner
-    return null;
+  const handleLogin = () => {
+    msalInstance.loginRedirect(loginRequest);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <h1 className="text-4xl font-bold text-blue-400 mb-4">AIMCS</h1>
+          <p className="text-gray-300 mb-8">AI Multimodal Customer System</p>
+          <button
+            onClick={handleLogin}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
