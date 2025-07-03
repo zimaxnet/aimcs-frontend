@@ -278,9 +278,6 @@ const MainPage = () => {
               {isLoading ? translations[language].processing : translations[language].send}
             </button>
           </div>
-          <div className="text-center text-gray-400 text-xs mt-2">
-            {translations[language].poweredBy} Zimax Networks AI
-          </div>
         </div>
       </div>
     </div>
