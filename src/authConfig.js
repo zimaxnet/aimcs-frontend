@@ -1,40 +1,45 @@
+import { LogLevel } from '@azure/msal-browser';
+
 export const msalConfig = {
   auth: {
-    clientId: "a9ad55e2-d46f-4bad-bce6-c95f1bc43018",
-    authority: "https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com",
-    redirectUri: "https://aimcs.net/",
-    knownAuthorities: ["zimaxai.ciamlogin.com"],
-    postLogoutRedirectUri: "https://aimcs.net/"
+    clientId: 'a9ad55e2-d46f-4bad-bce6-c95f1bc43018',
+    authority: 'https://zimaxai.ciamlogin.com/zimaxai.onmicrosoft.com',
+    redirectUri: window.location.origin,
+    postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: "sessionStorage",
-    storeAuthStateInCookie: false
+    cacheLocation: 'sessionStorage',
+    storeAuthStateInCookie: false,
   },
   system: {
-    allowNativeBroker: false,
     loggerOptions: {
       loggerCallback: (level, message, containsPii) => {
         if (containsPii) {
           return;
         }
         switch (level) {
-          case 0:
+          case LogLevel.Error:
             console.error(message);
             return;
-          case 1:
-            console.warn(message);
-            return;
-          case 2:
+          case LogLevel.Info:
             console.info(message);
             return;
-          case 3:
+          case LogLevel.Verbose:
             console.debug(message);
             return;
-          default:
-            console.log(message);
+          case LogLevel.Warning:
+            console.warn(message);
             return;
         }
-      }
-    }
-  }
-}; 
+      },
+    },
+  },
+};
+
+export const loginRequest = {
+  scopes: ['openid', 'profile', 'email'],
+};
+
+export const graphConfig = {
+  graphMeEndpoint: 'https://graph.microsoft.com/v1.0/me',
+};
